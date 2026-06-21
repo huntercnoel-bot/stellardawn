@@ -15,20 +15,30 @@ It's a single self‑contained HTML file (plus ship sprites), no install needed.
 | Key | Action |
 | --- | --- |
 | `W` | thrust |
+| `S` | brake |
 | `A` / `D` | turn |
+| `Shift` | boost (burns a recharging meter) |
 | `Space` | fire |
+| `F` | launch homing missile (once fitted) |
 | `E` | dock / undock |
 | `M` | map zoom |
 | `P` | toggle ambient music |
+
+On a phone or tablet, an on-screen **stick** (steer + thrust) and **FIRE / BOOST /
+MSL / DOCK / MAP** buttons appear automatically.
 
 ## How it works
 
 - Start docked at a random home base. Dock at a planet, click the **Trading Post**
   to buy/sell, the **Shipyard** to change ships, **Upgrades** to outfit your ship,
   and **Contracts** to take delivery jobs.
+- Watch the **Galactic Market News** — random **shortages** (sell high) and
+  **gluts** (buy cheap) pop up at stations and last a few visits.
+- An on-screen **waypoint arrow** points the way to each active contract.
 - Planets are **safe zones** — no combat in or out while you're inside the circle.
 - **Pirates** hunt you; **traders** are neutral unless you shoot them; shooting
-  peaceful ships raises your **wanted level** and brings the police.
+  peaceful ships raises your **wanted level** and brings the police. Enemies get
+  tougher as your net worth grows, so late-game runs stay dangerous.
 - Mine **asteroids** for ore, answer **distress beacons** (reward… or ambush),
   and grow your **net worth** to rank up. Reach 250,000 to become a Trade Baron.
 - Progress saves automatically in your browser.

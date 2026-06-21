@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>STELLAR TRADER — vector edition</title>
+<title>Stellar Dawn — space trading + combat</title>
 <style>
   :root { --neon: #36e0ff; --amber: #ffcc44; --red: #ff4455; --green: #55ff99; }
   * { box-sizing: border-box; }
@@ -12,7 +12,7 @@
     font-family: "Courier New", monospace; color: var(--neon);
     user-select: none;
   }
-  #game { display: block; width: 100vw; height: 100vh; }
+  #game { display: block; width: 100vw; height: 100vh; touch-action: none; }
 
   /* docking / shop overlay */
   #panel {
@@ -102,12 +102,50 @@
     border: 1px solid var(--neon); border-radius: 3px; padding: 1px 6px; color: var(--neon);
     font-size: 12px; margin: 0 1px; box-shadow: 0 0 5px rgba(54,224,255,0.3);
   }
+
+  /* on-screen touch controls — shown only on touch devices, hidden while docked */
+  #touch { position: fixed; inset: 0; z-index: 25; display: none; pointer-events: none; }
+  #touch.show { display: block; }
+  #stick {
+    position: absolute; left: 26px; bottom: 26px; width: 132px; height: 132px;
+    border: 2px solid rgba(54,224,255,0.5); border-radius: 50%; background: rgba(2,12,20,0.35);
+    pointer-events: auto; touch-action: none;
+  }
+  #stickKnob {
+    position: absolute; left: 50%; top: 50%; width: 54px; height: 54px; margin: -27px 0 0 -27px;
+    border-radius: 50%; background: rgba(54,224,255,0.35); border: 2px solid var(--neon);
+    box-shadow: 0 0 12px rgba(54,224,255,0.6); transform: translate(0,0);
+  }
+  .tbtn {
+    position: absolute; pointer-events: auto; touch-action: none; width: 76px; height: 76px;
+    border-radius: 50%; border: 2px solid var(--neon); background: rgba(2,12,20,0.5); color: var(--neon);
+    font-family: inherit; font-size: 12px; letter-spacing: 1px; text-shadow: 0 0 6px var(--neon);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .tbtn.on { background: var(--neon); color: #000; text-shadow: none; }
+  #tFire { right: 28px; bottom: 40px; width: 92px; height: 92px; border-color: var(--red); color: var(--red); }
+  #tFire.on { background: var(--red); color: #000; }
+  #tBoost { right: 132px; bottom: 60px; border-color: var(--amber); color: var(--amber); }
+  #tBoost.on { background: var(--amber); color: #000; }
+  #tMissile { right: 44px; bottom: 144px; border-color: var(--green); color: var(--green); }
+  #tMissile.on { background: var(--green); color: #000; }
+  #tDock { right: 142px; bottom: 156px; }
+  #tMap { left: 36px; top: 96px; width: 58px; height: 58px; font-size: 11px; }
 </style>
 </head>
 <body>
 <canvas id="game"></canvas>
 
 <div id="toast"></div>
+
+<div id="touch">
+  <div id="stick"><div id="stickKnob"></div></div>
+  <div id="tMap" class="tbtn">MAP</div>
+  <div id="tDock" class="tbtn">DOCK</div>
+  <div id="tMissile" class="tbtn">MSL</div>
+  <div id="tBoost" class="tbtn">BOOST</div>
+  <div id="tFire" class="tbtn">FIRE</div>
+</div>
 
 <div id="station">
   <div id="stationScene"></div>
@@ -119,8 +157,8 @@
 <div id="panel"><div class="window" id="panelBody"></div></div>
 
 <div id="intro"><div class="window">
-  <h1>STELLAR&nbsp;TRADER</h1>
-  <div class="sub">// vector edition — 200X //</div>
+  <h1>STELLAR&nbsp;DAWN</h1>
+  <div class="sub">// space trading + combat //</div>
   <p>
     Trade your way across a small star cluster. <b>Buy low, sell high</b>,<br>
     bank credits, and trade up to bigger, meaner ships at the shipyard.<br>
@@ -131,8 +169,9 @@
     ship in safety. Nothing can touch you until you <b>undock</b> into open space.
   </p>
   <p style="color:#ffcc44">
-    <kbd>W</kbd> thrust &nbsp; <kbd>A</kbd>/<kbd>D</kbd> turn &nbsp; <kbd>Space</kbd> fire<br>
-    <kbd>E</kbd> dock / undock &nbsp; <kbd>M</kbd> map &nbsp; <kbd>P</kbd> music
+    <kbd>W</kbd> thrust &nbsp; <kbd>S</kbd> brake &nbsp; <kbd>A</kbd>/<kbd>D</kbd> turn &nbsp; <kbd>Shift</kbd> boost<br>
+    <kbd>Space</kbd> fire &nbsp; <kbd>F</kbd> missile &nbsp; <kbd>E</kbd> dock/undock &nbsp; <kbd>M</kbd> map &nbsp; <kbd>P</kbd> music<br>
+    <span style="color:#7fc8d6">On a phone or tablet? Use the on-screen stick &amp; buttons.</span>
   </p>
   <button class="btn big" onclick="startGame()">LAUNCH</button>
   <div class="hint">tip: take a delivery contract at a station, then haul the goods to where it points.</div>
@@ -146,7 +185,7 @@
 <script>
 "use strict";
 //======================================================================
-//  STELLAR TRADER — single-file vector space trading + PvP (vs AI pirates)
+//  STELLAR DAWN — single-file vector space trading + combat (vs AI pirates)
 //  Plain JavaScript + Canvas. No libraries, no server. Just open in a browser.
 //======================================================================
 
@@ -280,6 +319,9 @@ let toastTimer = 0, running = false, lastT = 0;
 let dockedPlanet = null, invuln = 0, spawnTimer = 4, traderTimer = 6, shake = 0;
 let policeTimer = 4, eventTimer = 30, sandboxMode = false;
 let musicOn = false, musicNodes = null, lastDeliveries = [];
+let missiles = [], missileCd = 0, lowHullCd = 0, marketEvents = [];
+let touchEnabled = false;
+const touch = { steer: false, dx: 0, dy: 0, mag: 0, fire: false, boost: false };
 
 function makePlayer() {
   const s = SHIPS.Shuttle;
@@ -292,7 +334,7 @@ function makePlayer() {
     cargo: { Ore: 0, Water: 0, Fuel: 0, Electronics: 0, Medicine: 0, Spice: 0 },
     missions: [],
     upgrades: { damage: 0, fireRate: 0, shield: 0, engine: 0, cargo: 0, spread: 0 },
-    wanted: 0, rep: 0, won: false,
+    wanted: 0, rep: 0, won: false, boost: 1,
   };
 }
 function shipDef(p) { return SHIPS[p.shipType]; }
@@ -323,9 +365,10 @@ function emitTrail(p) {
 
 function initWorld() {
   player = makePlayer();
-  bullets = []; enemies = []; traders = []; particles = [];
+  bullets = []; enemies = []; traders = []; particles = []; missiles = [];
   loots = []; asteroids = []; beacons = [];
-  policeTimer = 4; eventTimer = 30;
+  policeTimer = 4; eventTimer = 30; spawnTimer = 4; traderTimer = 6;
+  missileCd = 0; lowHullCd = 0; marketEvents = [];
   stars = [];
   for (let i = 0; i < 320; i++) stars.push({ x: rand(0, WORLD.w), y: rand(0, WORLD.h), z: rand(0.3, 1), s: rand(0.5, 1.6) });
   camZoom = 1; mapZoom = 0;
@@ -335,19 +378,24 @@ function initWorld() {
   for (const pl of PLANETS) { pl.priceMod = {}; pl.contracts = null; for (const c of COMMODITIES) pl.priceMod[c] = rand(0.85, 1.15); }
 }
 
+// The galaxy gets meaner as you get richer, so a maxed Dreadnought still faces a fight.
+// Scales pirate/police hull, damage and bounty (and elite odds) with your net worth.
+function threatScale() { return 1 + Math.min(1.4, netWorth() / 220000); }
+
 function spawnPirate() {
   // spawn away from the player
   let x, y, tries = 0;
   do { x = rand(200, WORLD.w - 200); y = rand(200, WORLD.h - 200); tries++; }
   while (player && dist(x, y, player.x, player.y) < 900 && tries < 30);
+  const ts = threatScale();
   const roll = Math.random();
-  const elite = roll < 0.15;
+  const elite = roll < 0.15 + Math.min(0.18, (ts - 1) * 0.13);
   const tier = elite ? 2.4 : (roll < 0.4 ? 1.6 : 1);
   enemies.push({
     x, y, vx: 0, vy: 0, a: rand(0, TAU), faction: "pirate", elite,
-    hull: 40 * tier, maxHull: 40 * tier, fireCd: rand(0.5, 1.5),
-    maxSpd: elite ? 280 : 250, accel: 200, turn: elite ? 3.1 : 2.8, dmg: 8 * tier, bSpd: elite ? 540 : 480,
-    wander: rand(0, TAU), wanderT: 0, bounty: Math.round(rand(140, 380) * tier), tier,
+    hull: 40 * tier * ts, maxHull: 40 * tier * ts, fireCd: rand(0.5, 1.5),
+    maxSpd: elite ? 280 : 250, accel: 200, turn: elite ? 3.1 : 2.8, dmg: 8 * tier * ts, bSpd: elite ? 540 : 480,
+    wander: rand(0, TAU), wanderT: 0, bounty: Math.round(rand(140, 380) * tier * ts), tier,
   });
 }
 
@@ -372,6 +420,7 @@ addEventListener("keydown", e => {
   if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"," "].includes(e.key)) e.preventDefault();
   keys[e.key.toLowerCase()] = true;
   if (e.key.toLowerCase() === "e") { if (dockedPlanet) undock(); else tryDock(); }
+  if (e.key.toLowerCase() === "f") fireMissile();
   if (e.key.toLowerCase() === "m") mapZoom = mapZoom ? 0 : 1;
   if (e.key.toLowerCase() === "p") toggleMusic();
 });
@@ -389,21 +438,34 @@ function update(dt) {
   if (dockedPlanet) return; // paused while trading
   const p = player, def = shipDef(p);
 
-  // turn
-  if (keys["a"] || keys["arrowleft"])  p.a -= def.turn * dt;
-  if (keys["d"] || keys["arrowright"]) p.a += def.turn * dt;
+  // thrust intent — keyboard W, or the on-screen stick pushed past its deadzone
+  const thrustIntent = keys["w"] || keys["arrowup"] || (touch.steer && touch.mag > 0.3);
+  // boost (Shift / on-screen BOOST) while thrusting — burns a recharging energy meter
+  const wantBoost = thrustIntent && (keys["shift"] || touch.boost) && p.boost > 0.02;
+  if (wantBoost) p.boost = Math.max(0, p.boost - dt / 2.2);
+  else p.boost = Math.min(1, p.boost + dt / 4.5);
+  const boostF = wantBoost ? 1.9 : 1;
+
+  // turn — keyboard A/D, or steer toward the on-screen stick direction
+  if (touch.steer && touch.mag > 0.15) {
+    p.a += clamp(angDiff(p.a, Math.atan2(touch.dy, touch.dx)), -def.turn * dt, def.turn * dt);
+  } else {
+    if (keys["a"] || keys["arrowleft"])  p.a -= def.turn * dt;
+    if (keys["d"] || keys["arrowright"]) p.a += def.turn * dt;
+  }
   // thrust
-  const thrusting = keys["w"] || keys["arrowup"];
+  const thrusting = thrustIntent;
   if (thrusting) {
-    p.vx += Math.cos(p.a) * effAccel() * dt;
-    p.vy += Math.sin(p.a) * effAccel() * dt;
+    p.vx += Math.cos(p.a) * effAccel() * boostF * dt;
+    p.vy += Math.sin(p.a) * effAccel() * boostF * dt;
     emitTrail(p);
+    if (wantBoost) emitTrail(p);   // double exhaust streak while boosting
   }
   // brake
   if (keys["s"] || keys["arrowdown"]) { p.vx *= (1 - 1.6 * dt); p.vy *= (1 - 1.6 * dt); }
 
-  // clamp speed + light drag
-  const sp = Math.hypot(p.vx, p.vy), maxSpd = effMaxSpd();
+  // clamp speed + light drag (boost raises the ceiling)
+  const sp = Math.hypot(p.vx, p.vy), maxSpd = effMaxSpd() * boostF;
   if (sp > maxSpd) { p.vx *= maxSpd / sp; p.vy *= maxSpd / sp; }
   p.vx *= (1 - 0.25 * dt); p.vy *= (1 - 0.25 * dt);
   p.x = clamp(p.x + p.vx * dt, 0, WORLD.w);
@@ -411,7 +473,7 @@ function update(dt) {
 
   // fire
   p.fireCd -= dt;
-  if (keys[" "] && p.fireCd <= 0 && !inSafeZone(p.x, p.y)) {
+  if ((keys[" "] || touch.fire) && p.fireCd <= 0 && !inSafeZone(p.x, p.y)) {
     p.fireCd = effFireRate();
     const noseOff = 16 * playerScale(), dmg = effDmg();
     const angs = up("spread") ? [-0.13, 0, 0.13] : [0];
@@ -425,6 +487,11 @@ function update(dt) {
   }
 
   if (invuln > 0) invuln -= dt;
+  if (missileCd > 0) missileCd -= dt;
+
+  // low-hull warning klaxon (only out in the open, where it matters)
+  if (lowHullCd > 0) lowHullCd -= dt;
+  if (p.hull / p.maxHull < 0.3 && lowHullCd <= 0 && !inSafeZone(p.x, p.y)) { beep(210, 0.16, 0.06, "sawtooth"); lowHullCd = 1.1; }
 
   // enemies
   spawnTimer -= dt;
@@ -476,6 +543,7 @@ function update(dt) {
   bullets = bullets.filter(b => b.life > 0 && b.x > -50 && b.x < WORLD.w + 50 && b.y > -50 && b.y < WORLD.h + 50);
   enemies = enemies.filter(e => e.hull > 0);
   traders = traders.filter(t => t.hull > 0);
+  updateMissiles(dt);            // homing missiles steer, hit, and splash
   updateExtras(dt);              // loot, asteroids, beacons, police, shields, wanted decay
 
   // particles
@@ -595,6 +663,49 @@ function burst(x, y, col, n) {
   }
 }
 
+// ---- homing missiles (unlocked in OUTFITTING; fire with F or the on-screen MSL button) ----
+function nearestHostile(x, y) {
+  let best = null, bd = 1e9;
+  for (const e of enemies) { if (e.hull <= 0) continue; const d = dist(x, y, e.x, e.y); if (d < bd) { bd = d; best = e; } }
+  for (const t of traders) { if (!t.hostile || t.hull <= 0) continue; const d = dist(x, y, t.x, t.y); if (d < bd) { bd = d; best = t; } }
+  return best;
+}
+function fireMissile() {
+  if (!running || dockedPlanet) return;
+  if (!up("missiles")) { toast("No missile launcher — buy one in Outfitting"); return; }
+  if (inSafeZone(player.x, player.y)) { toast("Weapons offline in safe zone"); return; }
+  if (missileCd > 0) return;
+  missileCd = 2.4;
+  const a = player.a, off = 16 * playerScale();
+  missiles.push({
+    x: player.x + Math.cos(a) * off, y: player.y + Math.sin(a) * off,
+    vx: Math.cos(a) * 260 + player.vx, vy: Math.sin(a) * 260 + player.vy,
+    a, life: 4.2, dmg: 46 * (1 + 0.25 * up("damage")), target: null,
+  });
+  beep(300, 0.12, 0.09, "sawtooth"); setTimeout(() => beep(520, 0.08, 0.07, "sawtooth"), 60);
+}
+function updateMissiles(dt) {
+  for (const m of missiles) {
+    if (!m.target || m.target.hull <= 0) m.target = nearestHostile(m.x, m.y);
+    if (m.target) m.a += clamp(angDiff(m.a, Math.atan2(m.target.y - m.y, m.target.x - m.x)), -3.6 * dt, 3.6 * dt);
+    m.vx = Math.cos(m.a) * 520; m.vy = Math.sin(m.a) * 520;
+    m.x += m.vx * dt; m.y += m.vy * dt; m.life -= dt;
+    particles.push({ x: m.x, y: m.y, vx: rand(-12, 12), vy: rand(-12, 12), life: 0.5, max: 0.5, r: rand(1.6, 2.8), col: "#ffb070", glow: true });
+    let hit = null;
+    for (const e of enemies) { if (e.hull > 0 && dist(m.x, m.y, e.x, e.y) < 18) { hit = e; break; } }
+    if (!hit) for (const t of traders) { if (t.hull > 0 && t.hostile && dist(m.x, m.y, t.x, t.y) < 18) { hit = t; break; } }
+    if (hit) {
+      m.life = 0; boom(m.x, m.y, "#ffb070", 5);
+      // splash: full damage to the struck ship, half to anything else nearby
+      for (const e of enemies) { if (e.hull > 0 && dist(m.x, m.y, e.x, e.y) < 70) { e.hull -= m.dmg * (e === hit ? 1 : 0.5); if (e.hull <= 0) killEnemy(e); } }
+      for (const t of traders) { if (t.hull > 0 && t.hostile && dist(m.x, m.y, t.x, t.y) < 70) { t.hull -= m.dmg * (t === hit ? 1 : 0.5); if (t.hull <= 0) killTrader(t); } }
+    }
+  }
+  missiles = missiles.filter(m => m.life > 0 && m.x > -60 && m.x < WORLD.w + 60 && m.y > -60 && m.y < WORLD.h + 60);
+  enemies = enemies.filter(e => e.hull > 0);
+  traders = traders.filter(t => t.hull > 0);
+}
+
 // ---- docking ----
 function nearest(list) {
   let best = null, bd = 1e9;
@@ -626,11 +737,7 @@ function render() {
   // starfield (parallax)
   ctx.save();
   for (const s of stars) {
-    const px = ((s.x - camX * s.z) % WORLD.w + WORLD.w) % WORLD.w;
-    const py = ((s.y - camY * s.z) % WORLD.h + WORLD.h) % WORLD.h;
-    // wrap into a tile around camera for an endless feel
-    const sx = (px - (camX % WORLD.w)) ;
-    const [scx, scy] = [(s.x - camX) * z + W/2, (s.y - camY) * z + H/2];
+    const scx = (s.x - camX) * z + W / 2, scy = (s.y - camY) * z + H / 2;
     if (scx < -5 || scx > W + 5 || scy < -5 || scy > H + 5) continue;
     ctx.globalAlpha = 0.4 + s.z * 0.5;
     ctx.fillStyle = "#bfe9ff";
@@ -731,6 +838,16 @@ function render() {
   }
   ctx.shadowBlur = 0;
 
+  // homing missiles (little glowing darts)
+  for (const m of missiles) {
+    const [sx, sy] = toScreen(m.x, m.y);
+    ctx.save(); ctx.translate(sx, sy); ctx.rotate(m.a); ctx.scale(z, z);
+    ctx.fillStyle = "#ffd24a"; ctx.shadowBlur = 8; ctx.shadowColor = "#ff8a3c";
+    ctx.beginPath(); ctx.moveTo(6, 0); ctx.lineTo(-4, -2.6); ctx.lineTo(-4, 2.6); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+  ctx.shadowBlur = 0;
+
   // neutral traders (green = peaceful, red = provoked)
   for (const t of traders) {
     const [sx, sy] = toScreen(t.x, t.y);
@@ -765,11 +882,49 @@ function render() {
   // player
   const [psx, psy] = toScreen(player.x, player.y);
   if (!(invuln > 0 && Math.floor(invuln * 10) % 2)) {
-    drawShip(psx, psy, player.a, SHIP_ART[player.shipType], "#36e0ff", "#cdfaff", z * playerScale(), keys["w"] || keys["arrowup"]);
+    drawShip(psx, psy, player.a, SHIP_ART[player.shipType], "#36e0ff", "#cdfaff", z * playerScale(), keys["w"] || keys["arrowup"] || (touch.steer && touch.mag > 0.3));
   }
 
+  drawWaypoints();
+  drawLowHull();
   drawHUD();
   drawMinimap();
+}
+
+// Pulsing red border when the hull is critical — a clear "you're about to die" cue.
+function drawLowHull() {
+  const hp = player.hull / player.maxHull;
+  if (hp >= 0.3 || inSafeZone(player.x, player.y)) return;
+  const pulse = 0.35 + 0.35 * Math.sin(performance.now() / 140);
+  const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.32, W / 2, H / 2, Math.max(W, H) * 0.62);
+  g.addColorStop(0, "rgba(255,40,60,0)");
+  g.addColorStop(1, "rgba(255,40,60," + (pulse * (1 - hp / 0.3) * 0.9).toFixed(3) + ")");
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+}
+
+// Edge-of-screen arrows pointing toward your active contract destinations.
+function drawWaypoints() {
+  if (!player.missions.length || mapZoom) return;
+  const cx = W / 2, cy = H / 2, margin = 64, hw = cx - margin, hh = cy - margin;
+  const seen = {};
+  for (const m of player.missions) {
+    if (seen[m.dest]) continue; seen[m.dest] = 1;
+    const pl = PLANETS.find(p => p.name === m.dest); if (!pl) continue;
+    const sx = (pl.x - player.x) * camZoom + cx, sy = (pl.y - player.y) * camZoom + cy;
+    if (sx > margin && sx < W - margin && sy > margin && sy < H - margin) continue;  // already on screen
+    const ang = Math.atan2(pl.y - player.y, pl.x - player.x);
+    const reach = 1 / Math.max(Math.abs(Math.cos(ang)) / hw, Math.abs(Math.sin(ang)) / hh);
+    const ax = cx + Math.cos(ang) * reach, ay = cy + Math.sin(ang) * reach;
+    const col = player.cargo[m.commodity] >= m.qty ? "#55ff99" : "#ffcc44";
+    ctx.save();
+    ctx.translate(ax, ay); ctx.rotate(ang);
+    ctx.fillStyle = col; ctx.shadowBlur = 8; ctx.shadowColor = col;
+    ctx.beginPath(); ctx.moveTo(15, 0); ctx.lineTo(-6, -8); ctx.lineTo(-6, 8); ctx.closePath(); ctx.fill();
+    ctx.restore();
+    ctx.fillStyle = col; ctx.shadowBlur = 0; ctx.font = "10px 'Courier New', monospace"; ctx.textAlign = "center";
+    ctx.fillText(m.dest.toUpperCase(), clamp(ax, 54, W - 54), clamp(ay - 16, 26, H - 8));
+  }
+  ctx.textAlign = "left";
 }
 
 function drawPlanet(sx, sy, r, pl) {
@@ -922,7 +1077,19 @@ function drawHUD() {
   ctx.fillStyle = "#9fd8e4"; ctx.font = "10px 'Courier New', monospace";
   ctx.fillText("SHIELD", 24, 111); ctx.fillText("HULL", 24, 126);
 
-  let hy = 146;
+  // boost energy bar (amber)
+  ctx.fillStyle = "#2a1e05"; ctx.fillRect(20, 132, 180, 6);
+  ctx.fillStyle = "#ffcc44"; ctx.fillRect(20, 132, 180 * clamp(player.boost, 0, 1), 6);
+  ctx.strokeStyle = "#5a4a1a"; ctx.lineWidth = 1; ctx.strokeRect(20, 132, 180, 6);
+  ctx.fillStyle = "#9fd8e4"; ctx.font = "10px 'Courier New', monospace"; ctx.fillText("BOOST", 24, 137.5);
+  // missile-ready indicator (only once a launcher is fitted)
+  if (up("missiles")) {
+    const ready = missileCd <= 0;
+    ctx.fillStyle = ready ? "#55ff99" : "#5a8c98"; ctx.font = "11px 'Courier New', monospace";
+    ctx.fillText(ready ? "◈ MISSILE READY" : "◈ missile " + Math.ceil(missileCd) + "s", 210, 138);
+  }
+
+  let hy = 156;
   if (inSafeZone(player.x, player.y)) {
     ctx.fillStyle = "#55ff99"; ctx.shadowBlur = 8; ctx.shadowColor = "#55ff99";
     ctx.font = "13px 'Courier New', monospace";
@@ -1104,7 +1271,9 @@ function stationSceneSVG(pl) {
 function enterStation() {
   const pl = dockedPlanet;
   shake = 0;
+  if (touchEnabled) document.getElementById("touch").classList.remove("show");  // flight controls off while docked
   driftPrices();                       // markets have moved since you were last here
+  tickMarketEvents();                  // shortages & gluts evolve while you trade
   pl.contracts = genContracts(pl);     // post a fresh set of delivery jobs
   completeMissions();                  // fulfil any contracts you've just delivered
   saveGame();
@@ -1136,6 +1305,35 @@ function driftPrices() {                 // gentle mean-reversion + noise, run e
     for (const c of COMMODITIES)
       pl.priceMod[c] = clamp((pl.priceMod[c] || 1) + (1 - (pl.priceMod[c] || 1)) * 0.18 + rand(-0.07, 0.07), 0.5, 1.8);
   }
+}
+
+// ---------- galactic market events: shortages (sell high) & gluts (buy cheap) ----------
+// Each lasts a few docks; while active it pins that good's price so you can plan a run.
+function eventAt(plName, c) { return marketEvents.find(e => e.planet === plName && e.commodity === c); }
+function tickMarketEvents() {
+  for (let i = marketEvents.length - 1; i >= 0; i--) if (--marketEvents[i].ticks <= 0) marketEvents.splice(i, 1);
+  for (const ev of marketEvents) {                 // pin the affected price for the event's duration
+    const pl = PLANETS.find(p => p.name === ev.planet);
+    if (pl && pl.priceMod) pl.priceMod[ev.commodity] = ev.kind === "boom" ? rand(1.55, 1.8) : rand(0.5, 0.65);
+  }
+  if (marketEvents.length < 2 && Math.random() < 0.5) {  // maybe kick off a new one
+    const pl = PLANETS[Math.floor(Math.random() * PLANETS.length)];
+    const c = COMMODITIES[Math.floor(Math.random() * COMMODITIES.length)];
+    if (!eventAt(pl.name, c)) {
+      const kind = Math.random() < 0.5 ? "boom" : "glut";
+      marketEvents.push({ planet: pl.name, commodity: c, kind, ticks: 2 + Math.floor(Math.random() * 3) });
+      toast((kind === "boom" ? "📈 Shortage: " : "📉 Glut: ") + c + " @ " + pl.name, 3200);
+    }
+  }
+}
+function marketNewsHTML() {
+  if (!marketEvents.length) return "";
+  return marketEvents.map(e => {
+    const tag = e.kind === "boom"
+      ? '<span style="color:#55ff99">▲ SHORTAGE</span> <span style="color:#7fa6b2">(sell here)</span>'
+      : '<span style="color:#ff8a5a">▼ GLUT</span> <span style="color:#7fa6b2">(buy here)</span>';
+    return `${e.commodity} @ ${e.planet} — ${tag}`;
+  }).join("<br>");
 }
 
 // ---------- delivery contracts ----------
@@ -1263,6 +1461,7 @@ const UPGRADES = [
   { key: "engine",   name: "Engine Boost",         max: 5, cost: l => 700 * (l + 1) },
   { key: "cargo",    name: "Cargo Bay (+5)",       max: 5, cost: l => 600 * (l + 1) },
   { key: "spread",   name: "Spread Cannon (3-shot)", max: 1, cost: () => 4000 },
+  { key: "missiles", name: "Homing Missiles [F]",  max: 1, cost: () => 3500 },
 ];
 function buyUpgrade(key) {
   const u = UPGRADES.find(u => u.key === key); if (!u) return;
@@ -1291,7 +1490,7 @@ function netWorth() {
   for (const c of COMMODITIES) n += player.cargo[c] * 40;
   return n;
 }
-const RANKS = [[0, "Drifter"], [5000, "Trader"], [20000, "Merchant"], [60000, "Captain"], [150000, "Trade Baron"], [400000, "Tycoon"]];
+const RANKS = [[0, "Drifter"], [5000, "Trader"], [20000, "Merchant"], [60000, "Captain"], [250000, "Trade Baron"], [600000, "Tycoon"]];
 function rankName() { const n = netWorth(); let r = "Drifter"; for (const [t, name] of RANKS) if (n >= t) r = name; return r; }
 function checkWin() {
   if (!player.won && netWorth() >= 250000) {
@@ -1332,8 +1531,9 @@ function breakAsteroid(A) {
 
 // random events: distress beacons (rescue reward, or ambush)
 function makePirateAt(x, y) {
-  return { x, y, vx: 0, vy: 0, a: rand(0, TAU), faction: "pirate", elite: false, hull: 55, maxHull: 55, fireCd: rand(0.3, 1),
-    maxSpd: 260, accel: 210, turn: 2.9, dmg: 10, bSpd: 480, wander: 0, wanderT: 0, bounty: Math.round(rand(160, 300)), tier: 1.4 };
+  const ts = threatScale();
+  return { x, y, vx: 0, vy: 0, a: rand(0, TAU), faction: "pirate", elite: false, hull: 55 * ts, maxHull: 55 * ts, fireCd: rand(0.3, 1),
+    maxSpd: 260, accel: 210, turn: 2.9, dmg: 10 * ts, bSpd: 480, wander: 0, wanderT: 0, bounty: Math.round(rand(160, 300) * ts), tier: 1.4 };
 }
 function spawnBeacon() { beacons.push({ x: rand(300, WORLD.w - 300), y: rand(300, WORLD.h - 300), trap: Math.random() < 0.45, life: 80 }); }
 function resolveBeacon(b) {
@@ -1346,8 +1546,9 @@ function resolveBeacon(b) {
 function spawnPolice() {
   let x, y, tries = 0;
   do { x = rand(200, WORLD.w - 200); y = rand(200, WORLD.h - 200); tries++; } while (dist(x, y, player.x, player.y) < 700 && tries < 30);
-  enemies.push({ x, y, vx: 0, vy: 0, a: rand(0, TAU), faction: "police", elite: false, hull: 70, maxHull: 70, fireCd: rand(0.4, 1),
-    maxSpd: 280, accel: 230, turn: 3.0, dmg: 11, bSpd: 520, wander: 0, wanderT: 0, bounty: 0, tier: 1.6 });
+  const ts = threatScale();
+  enemies.push({ x, y, vx: 0, vy: 0, a: rand(0, TAU), faction: "police", elite: false, hull: 70 * ts, maxHull: 70 * ts, fireCd: rand(0.4, 1),
+    maxSpd: 280, accel: 230, turn: 3.0, dmg: 11 * ts, bSpd: 520, wander: 0, wanderT: 0, bounty: 0, tier: 1.6 });
 }
 
 // per-frame update for all the new systems
@@ -1397,11 +1598,15 @@ function openPanel(tab) {
     </div>`;
 
   if (tab === "market") {
+    const news = marketNewsHTML();
+    if (news) html += `<div class="hint" style="color:#ffcc44;border:1px solid #5a4a1a;border-radius:4px;padding:7px 9px;margin-bottom:10px">⚡ GALACTIC MARKET NEWS<br><span style="font-size:12px;color:#cfe6ff;line-height:1.7">${news}</span></div>`;
     html += `<table><tr><th>Commodity</th><th>Price</th><th>You</th><th>Buy</th><th>Sell</th></tr>`;
     for (const c of COMMODITIES) {
       const price = priceOf(pl, c);
+      const ev = eventAt(pl.name, c);
+      const evTag = ev ? (ev.kind === "boom" ? ' <span style="color:#55ff99">▲</span>' : ' <span style="color:#ff8a5a">▼</span>') : '';
       html += `<tr>
-        <td>${c}</td>
+        <td>${c}${evTag}</td>
         <td class="price">${price} cr</td>
         <td>${player.cargo[c]}</td>
         <td>
@@ -1533,6 +1738,7 @@ function undock() {
   dockedPlanet = null;
   document.getElementById("panel").style.display = "none";
   document.getElementById("station").classList.remove("show");
+  if (touchEnabled) document.getElementById("touch").classList.add("show");  // flight controls back on
   // nudge away so you don't instantly re-dock, with a few seconds of shields up
   player.vx += Math.cos(player.a) * 50; player.vy += Math.sin(player.a) * 50;
   invuln = Math.max(invuln, 2.5);
@@ -1580,6 +1786,48 @@ function startGame() {
   dockedPlanet = home;
   enterStation();
 }
+
+//======================================================================
+//  TOUCH CONTROLS — on-screen stick + buttons for phones / tablets
+//======================================================================
+function setupTouch() {
+  if (!(("ontouchstart" in window) || navigator.maxTouchPoints > 0)) return;
+  touchEnabled = true;
+  const wrap = document.getElementById("touch"); wrap.classList.add("show");
+  const stick = document.getElementById("stick"), knob = document.getElementById("stickKnob"), R = 50;
+  const setKnob = (dx, dy) => knob.style.transform = `translate(${dx}px,${dy}px)`;
+  function stickMove(t) {
+    const r = stick.getBoundingClientRect();
+    let dx = t.clientX - (r.left + r.width / 2), dy = t.clientY - (r.top + r.height / 2);
+    const len = Math.hypot(dx, dy) || 1, cl = Math.min(len, R);
+    dx = dx / len * cl; dy = dy / len * cl; setKnob(dx, dy);
+    touch.steer = true; touch.dx = dx; touch.dy = dy; touch.mag = cl / R;
+  }
+  const stickEnd = () => { touch.steer = false; touch.mag = 0; setKnob(0, 0); };
+  stick.addEventListener("touchstart", e => { e.preventDefault(); stickMove(e.changedTouches[0]); }, { passive: false });
+  stick.addEventListener("touchmove",  e => { e.preventDefault(); stickMove(e.changedTouches[0]); }, { passive: false });
+  stick.addEventListener("touchend",   e => { e.preventDefault(); stickEnd(); }, { passive: false });
+  stick.addEventListener("touchcancel", stickEnd);
+  // press-and-hold buttons (fire / boost)
+  const hold = (id, on, off) => {
+    const el = document.getElementById(id);
+    el.addEventListener("touchstart", e => { e.preventDefault(); el.classList.add("on"); on(); }, { passive: false });
+    el.addEventListener("touchend",   e => { e.preventDefault(); el.classList.remove("on"); off(); }, { passive: false });
+    el.addEventListener("touchcancel", () => { el.classList.remove("on"); off(); });
+  };
+  hold("tFire",  () => touch.fire = true,  () => touch.fire = false);
+  hold("tBoost", () => touch.boost = true, () => touch.boost = false);
+  // tap buttons (missile / dock / map)
+  const tap = (id, fn) => {
+    const el = document.getElementById(id);
+    el.addEventListener("touchstart", e => { e.preventDefault(); el.classList.add("on"); fn(); }, { passive: false });
+    el.addEventListener("touchend",   e => { e.preventDefault(); el.classList.remove("on"); }, { passive: false });
+  };
+  tap("tMissile", fireMissile);
+  tap("tDock", () => { if (dockedPlanet) undock(); else tryDock(); });
+  tap("tMap", () => mapZoom = mapZoom ? 0 : 1);
+}
+setupTouch();
 
 requestAnimationFrame(loop);
 </script>
