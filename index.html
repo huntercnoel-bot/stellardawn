@@ -131,6 +131,21 @@
   #tMissile.on { background: var(--green); color: #000; }
   #tDock { right: 142px; bottom: 156px; }
   #tMap { left: 36px; top: 96px; width: 58px; height: 58px; font-size: 11px; }
+
+  /* chat box (bottom-left) — type to everyone in the sector */
+  #chat { position: fixed; left: 16px; bottom: 16px; width: 330px; max-width: 46vw; z-index: 16; }
+  #chatLog {
+    max-height: 140px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px;
+    margin-bottom: 6px; padding-right: 4px; font-size: 12px; line-height: 1.4;
+  }
+  #chatLog .msg { color: #bfe9ff; text-shadow: 0 0 4px rgba(0,0,0,0.95); }
+  #chatLog .msg .who { color: var(--amber); }
+  #chatLog .msg.sys { color: #6fb6c4; font-style: italic; }
+  #chatInput {
+    width: 100%; background: rgba(2,12,20,0.74); border: 1px solid #1c4a55; color: var(--neon);
+    font-family: inherit; font-size: 12px; padding: 6px 9px; border-radius: 4px; outline: none;
+  }
+  #chatInput:focus { border-color: var(--neon); box-shadow: 0 0 8px rgba(54,224,255,0.4); }
 </style>
 </head>
 <body>
@@ -145,6 +160,11 @@
   <div id="tMissile" class="tbtn">MSL</div>
   <div id="tBoost" class="tbtn">BOOST</div>
   <div id="tFire" class="tbtn">FIRE</div>
+</div>
+
+<div id="chat">
+  <div id="chatLog"></div>
+  <input id="chatInput" maxlength="160" autocomplete="off" placeholder="Press Enter to chat…" />
 </div>
 
 <div id="station">
@@ -170,7 +190,7 @@
   </p>
   <p style="color:#ffcc44">
     <kbd>W</kbd> thrust &nbsp; <kbd>S</kbd> brake &nbsp; <kbd>A</kbd>/<kbd>D</kbd> turn &nbsp; <kbd>Shift</kbd> boost<br>
-    <kbd>Space</kbd> fire &nbsp; <kbd>F</kbd> missile &nbsp; <kbd>E</kbd> dock/undock &nbsp; <kbd>M</kbd> map &nbsp; <kbd>Esc</kbd> pause &nbsp; <kbd>P</kbd> music<br>
+    <kbd>Space</kbd> fire &nbsp; <kbd>F</kbd> missile &nbsp; <kbd>E</kbd> dock/undock &nbsp; <kbd>M</kbd> map &nbsp; <kbd>Enter</kbd> chat &nbsp; <kbd>Esc</kbd> pause &nbsp; <kbd>P</kbd> music<br>
     <span style="color:#7fc8d6">On a phone or tablet? Use the on-screen stick &amp; buttons.</span>
   </p>
   <button class="btn big" onclick="startGame()">LAUNCH</button>
@@ -420,7 +440,10 @@ function spawnTrader() {
 
 // ---- input ----
 const keys = {};
+const typingInChat = () => document.activeElement && document.activeElement.id === "chatInput";
 addEventListener("keydown", e => {
+  if (typingInChat()) return;                 // chat has focus — let the player type, don't fly the ship
+  if (e.key === "Enter") { if (running && !dockedPlanet) focusChat(); return; }
   if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"," "].includes(e.key)) e.preventDefault();
   keys[e.key.toLowerCase()] = true;
   if (e.key.toLowerCase() === "e") { if (dockedPlanet) undock(); else tryDock(); }
@@ -429,7 +452,7 @@ addEventListener("keydown", e => {
   if (e.key.toLowerCase() === "p") toggleMusic();
   if (e.key === "Escape" && running && !dockedPlanet) { paused = !paused; toast(paused ? "Paused — press Esc to resume" : "Resumed", 1200); }
 });
-addEventListener("keyup", e => { keys[e.key.toLowerCase()] = false; });
+addEventListener("keyup", e => { if (typingInChat()) return; keys[e.key.toLowerCase()] = false; });
 
 function toast(msg, ms = 2200) {
   const t = document.getElementById("toast");
@@ -1206,10 +1229,11 @@ function drawMinimap() {
     if (big) { ctx.fillStyle = pl.col; ctx.font = "10px 'Courier New'"; ctx.textAlign="center";
       ctx.fillText(pl.name, mx + pl.x * sx, my + pl.y * sy - 8); }
   }
-  // peaceful traffic only — hostiles (pirates, police, warlord) stay off the radar
-  for (const t of traders) { if (t.hostile) continue; ctx.fillStyle = "#55ff99"; ctx.fillRect(mx + t.x * sx - 1.5, my + t.y * sy - 1.5, 3, 3); }
-  ctx.fillStyle = "#ffcc44";
-  for (const b of beacons) { ctx.beginPath(); ctx.arc(mx + b.x * sx, my + b.y * sy, 3, 0, TAU); ctx.fill(); }
+  // radar shows planets only — no NPC traders, no hostiles. Distress beacons show on the full map.
+  if (big) {
+    ctx.fillStyle = "#ffcc44";
+    for (const b of beacons) { ctx.beginPath(); ctx.arc(mx + b.x * sx, my + b.y * sy, 3, 0, TAU); ctx.fill(); }
+  }
   ctx.fillStyle = "#fff";
   ctx.beginPath(); ctx.arc(mx + player.x * sx, my + player.y * sy, big ? 4 : 3, 0, TAU); ctx.fill();
   if (big) drawMapIntel(mx, my, sx, sy, mw, mh);
@@ -1250,8 +1274,7 @@ function drawMapIntel(mx, my, sx, sy, mw, mh) {
   const ly = my + mh + 30;
   ctx.fillStyle = "#55ff99"; ctx.fillText("▲ shortage (sell)", mx + 6, ly);
   ctx.fillStyle = "#ff8a5a"; ctx.fillText("▼ glut (buy)", mx + 150, ly);
-  ctx.fillStyle = "#55ff99"; ctx.fillText("● trader", mx + 260, ly);
-  ctx.fillStyle = "#ffcc44"; ctx.fillText("● beacon", mx + 350, ly);
+  ctx.fillStyle = "#ffcc44"; ctx.fillText("● distress beacon", mx + 260, ly);
 }
 
 //======================================================================
@@ -1273,6 +1296,7 @@ function shipPolySVG(type, cx, cy, s) {
 function stationSceneSVG(pl) {
   const col = pl.col;
   const parked = shipPolySVG(player.shipType, 640, 452, 5);
+  const yardShip = shipPolySVG("Dreadnought", 1070, 498, 2.8);   // a hull on the drydock cradle
   return `<svg viewBox="0 0 1280 720" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <filter id="stnglow" x="-40%" y="-40%" width="180%" height="180%">
@@ -1293,6 +1317,14 @@ function stationSceneSVG(pl) {
     <filter id="drop" x="-30%" y="-30%" width="160%" height="160%">
       <feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#000" flood-opacity="0.55"/>
     </filter>
+    <linearGradient id="awnA" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#ff9b4a"/><stop offset="100%" stop-color="#c2531b"/></linearGradient>
+    <linearGradient id="awnB" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3fd6c4"/><stop offset="100%" stop-color="#1c8d86"/></linearGradient>
+    <linearGradient id="domeG" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#33485c"/><stop offset="100%" stop-color="#172230"/></linearGradient>
+    <radialGradient id="padRing" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#13283a"/><stop offset="60%" stop-color="#0a1622"/><stop offset="100%" stop-color="#060b12"/></radialGradient>
+    <radialGradient id="hangarG" cx="50%" cy="40%" r="80%"><stop offset="0%" stop-color="#16304a"/><stop offset="100%" stop-color="#070d15"/></radialGradient>
+    <linearGradient id="metalG" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#46566a"/><stop offset="100%" stop-color="#1b2531"/></linearGradient>
+    <linearGradient id="holoG" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#36e0ff" stop-opacity="0.5"/><stop offset="100%" stop-color="#36e0ff" stop-opacity="0.05"/></linearGradient>
+    <pattern id="hazard" width="24" height="18" patternUnits="userSpaceOnUse"><rect width="24" height="18" fill="#1a1808"/><polygon points="0,18 12,0 24,0 12,18" fill="#d8b020"/></pattern>
   </defs>
 
   <rect width="1280" height="720" fill="url(#groundG)"/>
@@ -1332,19 +1364,34 @@ function stationSceneSVG(pl) {
   <!-- ===== LEFT ZONE: TRADING POST ===== -->
   <g class="zone" onclick="openPanel('market')">
     <rect class="hit" x="36" y="214" width="360" height="462" fill="#ffffff" fill-opacity="0" pointer-events="all"/>
-    <g stroke="#5a6a78" stroke-width="2" fill="url(#bldG)" filter="url(#drop)">
-      <rect x="60" y="300" width="150" height="78"/><rect x="80" y="276" width="86" height="26"/>
-      <rect x="230" y="288" width="110" height="92"/><rect x="60" y="470" width="190" height="86"/>
-      <rect x="270" y="486" width="120" height="74"/><rect x="100" y="580" width="250" height="74"/>
+    <!-- domed market hall -->
+    <path d="M72,356 Q72,298 201,298 Q330,298 330,356 Z" fill="url(#domeG)" stroke="#5a6a78" stroke-width="2"/>
+    <rect x="72" y="354" width="258" height="302" fill="url(#bldG)" stroke="#5a6a78" stroke-width="2" filter="url(#drop)"/>
+    <!-- holographic price ticker -->
+    <rect x="100" y="372" width="120" height="28" rx="3" fill="url(#holoG)" stroke="${col}" stroke-width="1.2"/>
+    <polyline points="108,392 122,380 134,386 148,372 160,378" fill="none" stroke="#55ff99" stroke-width="2"/>
+    <polyline points="170,374 182,386 194,380 206,392" fill="none" stroke="#ff6a6a" stroke-width="2"/>
+    <!-- warm windows + central door -->
+    <g fill="#ffb259" opacity="0.9">
+      <rect x="92" y="416" width="20" height="30" rx="2"/><rect x="132" y="416" width="20" height="30" rx="2"/>
+      <rect x="250" y="416" width="20" height="30" rx="2"/><rect x="290" y="416" width="20" height="30" rx="2"/>
     </g>
-    <g stroke="#1c2630" stroke-width="1.4">
-      <line x1="60" y1="340" x2="210" y2="340"/><line x1="135" y1="300" x2="135" y2="378"/>
-      <line x1="230" y1="334" x2="340" y2="334"/><line x1="60" y1="512" x2="250" y2="512"/>
+    <rect x="176" y="556" width="52" height="100" fill="#0c1118" stroke="#3c4650" stroke-width="1.5"/>
+    <line x1="202" y1="556" x2="202" y2="656" stroke="#1c2630" stroke-width="1.5"/>
+    <!-- stacked cargo containers -->
+    <g stroke="#11181f" stroke-width="1.5">
+      <rect x="92" y="484" width="48" height="34" fill="#c2531b"/><rect x="142" y="484" width="48" height="34" fill="#2f7d8c"/>
+      <rect x="117" y="450" width="48" height="34" fill="#b9a23a"/>
     </g>
-    <g fill="#ff7a2c" opacity="0.8">
-      <rect x="74" y="350" width="12" height="12"/><rect x="100" y="350" width="12" height="12"/><rect x="248" y="346" width="12" height="16"/>
-      <rect x="280" y="500" width="12" height="12"/><rect x="120" y="600" width="16" height="12"/><rect x="160" y="600" width="16" height="12"/>
-    </g>
+    <!-- market stalls with striped awnings -->
+    <rect x="84" y="556" width="86" height="70" fill="url(#bldG)" stroke="#3c4650" stroke-width="1.5"/>
+    <polygon points="76,556 178,556 188,530 86,530" fill="url(#awnA)"/>
+    <g stroke="#7a2f12" stroke-width="1" opacity="0.45"><line x1="104" y1="556" x2="112" y2="530"/><line x1="130" y1="556" x2="138" y2="530"/><line x1="156" y1="556" x2="164" y2="530"/></g>
+    <rect x="234" y="556" width="86" height="70" fill="url(#bldG)" stroke="#3c4650" stroke-width="1.5"/>
+    <polygon points="226,556 328,556 338,530 236,530" fill="url(#awnB)"/>
+    <g stroke="#0d4742" stroke-width="1" opacity="0.45"><line x1="254" y1="556" x2="262" y2="530"/><line x1="280" y1="556" x2="288" y2="530"/><line x1="306" y1="556" x2="314" y2="530"/></g>
+    <!-- hanging lanterns -->
+    <g fill="${col}" filter="url(#stnglow)"><circle cx="92" cy="360" r="5"/><circle cx="310" cy="360" r="5"/></g>
     <rect class="hl" x="40" y="218" width="352" height="454" rx="8" fill="none" stroke="${col}" stroke-width="2.5"/>
     <text class="zlabel" x="58" y="262" fill="${col}" font-family="'Courier New',monospace" font-size="30" letter-spacing="2" filter="url(#stnglow)">TRADING POST</text>
     <text x="60" y="690" fill="#7fa6b2" font-family="'Courier New',monospace" font-size="15" letter-spacing="1">&#9656; buy &amp; sell cargo</text>
@@ -1353,14 +1400,40 @@ function stationSceneSVG(pl) {
   <!-- ===== CENTER: LAUNCH BAY (undock) ===== -->
   <g class="zone" onclick="undock()">
     <rect class="hit" x="430" y="232" width="420" height="448" fill="#ffffff" fill-opacity="0" pointer-events="all"/>
-    <polygon points="556,360 724,360 786,420 786,506 724,566 556,566 494,506 494,420" fill="url(#padG)" stroke="#3c4650" stroke-width="3"/>
-    <polygon points="576,386 704,386 752,432 752,494 704,540 576,540 528,494 528,432" fill="none" stroke="#2a323b" stroke-width="1.5"/>
-    <g stroke="#3c4650" stroke-width="1.5"><line x1="640" y1="360" x2="640" y2="566"/><line x1="494" y1="463" x2="786" y2="463"/></g>
+    <!-- glowing circular launch pad with concentric rings -->
+    <circle cx="640" cy="462" r="120" fill="url(#padRing)" stroke="#3c4650" stroke-width="3"/>
+    <circle cx="640" cy="462" r="98" fill="none" stroke="${col}" stroke-width="2" opacity="0.45"/>
+    <circle cx="640" cy="462" r="72" fill="none" stroke="${col}" stroke-width="1.5" opacity="0.3" stroke-dasharray="6 8"/>
+    <circle cx="640" cy="462" r="46" fill="none" stroke="${col}" stroke-width="1.5" opacity="0.55"/>
+    <!-- hazard rim ticks -->
+    <g stroke="#ffb45a" stroke-width="4" opacity="0.9">
+      <line x1="740" y1="462" x2="758" y2="462"/><line x1="640" y1="362" x2="640" y2="344"/>
+      <line x1="640" y1="562" x2="640" y2="580"/><line x1="540" y1="462" x2="522" y2="462"/>
+      <line x1="711" y1="533" x2="724" y2="546"/><line x1="569" y1="533" x2="556" y2="546"/>
+      <line x1="711" y1="391" x2="724" y2="378"/><line x1="569" y1="391" x2="556" y2="378"/>
+    </g>
+    <!-- gantry service tower -->
+    <rect x="486" y="320" width="40" height="18" fill="url(#metalG)" stroke="#5a6a78" stroke-width="1.5"/>
+    <g stroke="#5a6a78" stroke-width="3" fill="none">
+      <line x1="498" y1="338" x2="498" y2="598"/><line x1="516" y1="338" x2="516" y2="598"/>
+      <line x1="498" y1="338" x2="516" y2="378"/><line x1="516" y1="338" x2="498" y2="378"/>
+      <line x1="498" y1="378" x2="516" y2="418"/><line x1="516" y1="378" x2="498" y2="418"/>
+      <line x1="498" y1="418" x2="516" y2="458"/><line x1="516" y1="418" x2="498" y2="458"/>
+      <line x1="498" y1="458" x2="516" y2="498"/><line x1="516" y1="458" x2="498" y2="498"/>
+      <line x1="498" y1="498" x2="516" y2="538"/><line x1="516" y1="498" x2="498" y2="538"/>
+      <line x1="498" y1="538" x2="516" y2="578"/><line x1="516" y1="538" x2="498" y2="578"/>
+      <line x1="516" y1="452" x2="566" y2="452"/>
+    </g>
+    <!-- floodlight casting a soft cone -->
+    <line x1="770" y1="600" x2="770" y2="432" stroke="#46566a" stroke-width="4"/>
+    <polygon points="770,432 694,556 806,556" fill="#fff6d0" opacity="0.06"/>
+    <circle cx="770" cy="430" r="6" fill="#fff6d0" filter="url(#stnglow)"/>
     ${parked}
-    <rect x="470" y="582" width="84" height="64" fill="url(#padG)" stroke="#3c4650" stroke-width="2"/>
-    <text x="512" y="620" text-anchor="middle" fill="#ff8a3c" font-family="'Courier New',monospace" font-size="18">4C</text>
-    <rect x="726" y="586" width="92" height="60" fill="url(#padG)" stroke="#3c4650" stroke-width="2"/>
-    <text x="772" y="622" text-anchor="middle" fill="#ff8a3c" font-family="'Courier New',monospace" font-size="18">15C</text>
+    <!-- launch readout plates -->
+    <rect x="470" y="600" width="92" height="46" rx="3" fill="url(#padG)" stroke="#3c4650" stroke-width="2"/>
+    <text x="516" y="630" text-anchor="middle" fill="#ff8a3c" font-family="'Courier New',monospace" font-size="16">PAD 07</text>
+    <rect x="718" y="600" width="100" height="46" rx="3" fill="url(#padG)" stroke="#3c4650" stroke-width="2"/>
+    <text x="768" y="630" text-anchor="middle" fill="#55ff99" font-family="'Courier New',monospace" font-size="15">CLEAR &#9650;</text>
     <rect class="hl" x="434" y="236" width="412" height="440" rx="8" fill="none" stroke="${col}" stroke-width="2.5"/>
     <text class="zlabel" x="640" y="296" text-anchor="middle" fill="${col}" font-family="'Courier New',monospace" font-size="30" letter-spacing="3" filter="url(#stnglow)">LAUNCH BAY</text>
     <text x="640" y="666" text-anchor="middle" fill="${col}" font-family="'Courier New',monospace" font-size="15" letter-spacing="1">&#9656; click to undock &amp; fly out</text>
@@ -1369,20 +1442,28 @@ function stationSceneSVG(pl) {
   <!-- ===== RIGHT ZONE: SHIPYARD ===== -->
   <g class="zone" onclick="openPanel('yard')">
     <rect class="hit" x="884" y="214" width="360" height="462" fill="#ffffff" fill-opacity="0" pointer-events="all"/>
-    <g stroke="#5a6a78" stroke-width="2" fill="url(#bldG)" filter="url(#drop)">
-      <rect x="980" y="470" width="240" height="170"/><rect x="900" y="540" width="78" height="100"/>
-      <rect x="1130" y="290" width="90" height="60"/><rect x="920" y="300" width="60" height="46"/>
+    <!-- hangar shell with a gabled roof -->
+    <polygon points="902,352 1070,314 1238,352 1238,652 902,652" fill="url(#bldG)" stroke="#5a6a78" stroke-width="2" filter="url(#drop)"/>
+    <!-- open bay with interior glow -->
+    <rect x="930" y="372" width="282" height="256" fill="url(#hangarG)" stroke="#2a3543" stroke-width="2"/>
+    <!-- overhead crane rail + hook -->
+    <line x1="940" y1="372" x2="1202" y2="372" stroke="#5a6a78" stroke-width="4"/>
+    <line x1="1070" y1="372" x2="1070" y2="402" stroke="#8a97a4" stroke-width="1.5"/>
+    <polygon points="1064,402 1076,402 1070,414" fill="#8a97a4"/>
+    ${yardShip}
+    <!-- scaffold cradle around the hull -->
+    <g stroke="#46566a" stroke-width="3" fill="none">
+      <line x1="1006" y1="392" x2="1006" y2="602"/><line x1="1134" y1="392" x2="1134" y2="602"/>
+      <line x1="1006" y1="430" x2="1134" y2="430"/><line x1="1006" y1="502" x2="1134" y2="502"/><line x1="1006" y1="572" x2="1134" y2="572"/>
     </g>
-    <g stroke="#3c4650" stroke-width="1.4" fill="none">
-      <rect x="980" y="350" width="220" height="96"/>
-      <line x1="1035" y1="350" x2="1035" y2="446"/><line x1="1090" y1="350" x2="1090" y2="446"/><line x1="1145" y1="350" x2="1145" y2="446"/>
-    </g>
-    <g stroke="#6a7a84" stroke-width="2.4" fill="#11181f">
-      <polygon points="988,372 1148,372 1196,398 1148,424 988,424 956,398"/>
-      <line x1="1035" y1="372" x2="1035" y2="424"/><line x1="1090" y1="372" x2="1090" y2="424"/>
-    </g>
-    <g stroke="#5a6a74" stroke-width="3"><line x1="956" y1="340" x2="1200" y2="340"/><line x1="1160" y1="340" x2="1160" y2="364"/></g>
-    <g fill="#ff7a2c" opacity="0.75"><rect x="910" y="560" width="14" height="12"/><rect x="936" y="560" width="14" height="12"/><rect x="1150" y="306" width="12" height="16"/></g>
+    <!-- welding arm + sparks -->
+    <polyline points="1006,474 1042,474 1060,490" fill="none" stroke="#6a7a84" stroke-width="3"/>
+    <g fill="#ffd24a" filter="url(#stnglow)"><circle cx="1062" cy="492" r="3"/><circle cx="1070" cy="485" r="1.6"/><circle cx="1055" cy="500" r="1.6"/><circle cx="1074" cy="498" r="1.3"/></g>
+    <!-- wall-mounted blueprint holo -->
+    <rect x="912" y="396" width="70" height="50" rx="3" fill="url(#holoG)" stroke="${col}" stroke-width="1.2"/>
+    <g stroke="${col}" stroke-width="1" opacity="0.8" fill="none"><circle cx="947" cy="421" r="12"/><line x1="935" y1="421" x2="959" y2="421"/><line x1="947" y1="409" x2="947" y2="433"/></g>
+    <!-- hazard floor strip -->
+    <rect x="930" y="628" width="282" height="16" fill="url(#hazard)" opacity="0.85"/>
     <rect class="hl" x="888" y="218" width="352" height="454" rx="8" fill="none" stroke="${col}" stroke-width="2.5"/>
     <text class="zlabel" x="906" y="262" fill="${col}" font-family="'Courier New',monospace" font-size="30" letter-spacing="2" filter="url(#stnglow)">SHIPYARD</text>
     <text x="908" y="690" fill="#7fa6b2" font-family="'Courier New',monospace" font-size="15" letter-spacing="1">&#9656; buy &amp; switch ships</text>
@@ -1969,6 +2050,7 @@ function setupTouch() {
   if (!(("ontouchstart" in window) || navigator.maxTouchPoints > 0)) return;
   touchEnabled = true;
   const wrap = document.getElementById("touch"); wrap.classList.add("show");
+  const cb = document.getElementById("chat"); if (cb) { cb.style.bottom = "182px"; cb.style.width = "260px"; }  // clear the thumbstick
   const stick = document.getElementById("stick"), knob = document.getElementById("stickKnob"), R = 50;
   const setKnob = (dx, dy) => knob.style.transform = `translate(${dx}px,${dy}px)`;
   function stickMove(t) {
@@ -2003,6 +2085,53 @@ function setupTouch() {
   tap("tMap", () => mapZoom = mapZoom ? 0 : 1);
 }
 setupTouch();
+
+//======================================================================
+//  CHAT  (local for now; broadcastChat() is the hook for shared/multiplayer)
+//======================================================================
+let chatName = (() => {
+  try { let n = localStorage.getItem("stellarChatName"); if (!n) { n = "Pilot-" + Math.floor(rand(100, 999)); localStorage.setItem("stellarChatName", n); } return n; }
+  catch (e) { return "Pilot"; }
+})();
+function addChatMessage(who, text, sys) {
+  const log = document.getElementById("chatLog"); if (!log) return;
+  const div = document.createElement("div");
+  div.className = "msg" + (sys ? " sys" : "");
+  if (sys) { div.textContent = text; }
+  else {
+    const w = document.createElement("span"); w.className = "who"; w.textContent = who + ": ";
+    div.appendChild(w); div.appendChild(document.createTextNode(text));   // textNode = no HTML injection
+  }
+  log.appendChild(div);
+  while (log.children.length > 60) log.removeChild(log.firstChild);
+  log.scrollTop = log.scrollHeight;
+}
+function focusChat() {
+  const ci = document.getElementById("chatInput"); if (!ci) return;
+  for (const k in keys) keys[k] = false;            // release the controls while typing
+  ci.focus();
+}
+function sendChat(text) {
+  text = (text || "").trim(); if (!text) return;
+  if (text.startsWith("/name ")) {
+    const n = text.slice(6).trim().slice(0, 16);
+    if (n) { chatName = n; try { localStorage.setItem("stellarChatName", chatName); } catch (e) {} addChatMessage("", "you are now known as " + chatName, true); }
+    return;
+  }
+  addChatMessage(chatName, text, false);
+  broadcastChat(text);
+}
+function broadcastChat(text) { /* shared-chat transport hook — wired once a backend is chosen */ }
+function setupChat() {
+  const ci = document.getElementById("chatInput"); if (!ci) return;
+  ci.addEventListener("keydown", e => {
+    e.stopPropagation();
+    if (e.key === "Enter") { sendChat(ci.value); ci.value = ""; ci.blur(); }
+    else if (e.key === "Escape") { ci.value = ""; ci.blur(); }
+  });
+  addChatMessage("", "Chat ready — press Enter to type, /name to rename.", true);
+}
+setupChat();
 
 requestAnimationFrame(loop);
 </script>

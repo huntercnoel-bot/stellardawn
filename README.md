@@ -22,6 +22,7 @@ It's a single self‑contained HTML file (plus ship sprites), no install needed.
 | `F` | launch homing missile (once fitted) |
 | `E` | dock / undock |
 | `M` | map zoom |
+| `Enter` | open chat (type a message) |
 | `Esc` | pause / resume |
 | `P` | toggle ambient music |
 
