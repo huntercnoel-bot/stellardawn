@@ -170,7 +170,7 @@
   </p>
   <p style="color:#ffcc44">
     <kbd>W</kbd> thrust &nbsp; <kbd>S</kbd> brake &nbsp; <kbd>A</kbd>/<kbd>D</kbd> turn &nbsp; <kbd>Shift</kbd> boost<br>
-    <kbd>Space</kbd> fire &nbsp; <kbd>F</kbd> missile &nbsp; <kbd>E</kbd> dock/undock &nbsp; <kbd>M</kbd> map &nbsp; <kbd>P</kbd> music<br>
+    <kbd>Space</kbd> fire &nbsp; <kbd>F</kbd> missile &nbsp; <kbd>E</kbd> dock/undock &nbsp; <kbd>M</kbd> map &nbsp; <kbd>Esc</kbd> pause &nbsp; <kbd>P</kbd> music<br>
     <span style="color:#7fc8d6">On a phone or tablet? Use the on-screen stick &amp; buttons.</span>
   </p>
   <button class="btn big" onclick="startGame()">LAUNCH</button>
@@ -320,8 +320,12 @@ let dockedPlanet = null, invuln = 0, spawnTimer = 4, traderTimer = 6, shake = 0;
 let policeTimer = 4, eventTimer = 30, sandboxMode = false;
 let musicOn = false, musicNodes = null, lastDeliveries = [];
 let missiles = [], missileCd = 0, lowHullCd = 0, marketEvents = [];
-let touchEnabled = false;
+let touchEnabled = false, paused = false;
 const touch = { steer: false, dx: 0, dy: 0, mag: 0, fire: false, boost: false };
+
+function freshStats() {
+  return { kills: 0, eliteKills: 0, contracts: 0, asteroids: 0, rescues: 0, deaths: 0, distance: 0, bestNet: 0 };
+}
 
 function makePlayer() {
   const s = SHIPS.Shuttle;
@@ -334,7 +338,7 @@ function makePlayer() {
     cargo: { Ore: 0, Water: 0, Fuel: 0, Electronics: 0, Medicine: 0, Spice: 0 },
     missions: [],
     upgrades: { damage: 0, fireRate: 0, shield: 0, engine: 0, cargo: 0, spread: 0 },
-    wanted: 0, rep: 0, won: false, boost: 1,
+    wanted: 0, rep: 0, won: false, boost: 1, stats: freshStats(),
   };
 }
 function shipDef(p) { return SHIPS[p.shipType]; }
@@ -423,6 +427,7 @@ addEventListener("keydown", e => {
   if (e.key.toLowerCase() === "f") fireMissile();
   if (e.key.toLowerCase() === "m") mapZoom = mapZoom ? 0 : 1;
   if (e.key.toLowerCase() === "p") toggleMusic();
+  if (e.key === "Escape" && running && !dockedPlanet) { paused = !paused; toast(paused ? "Paused — press Esc to resume" : "Resumed", 1200); }
 });
 addEventListener("keyup", e => { keys[e.key.toLowerCase()] = false; });
 
@@ -470,6 +475,7 @@ function update(dt) {
   p.vx *= (1 - 0.25 * dt); p.vy *= (1 - 0.25 * dt);
   p.x = clamp(p.x + p.vx * dt, 0, WORLD.w);
   p.y = clamp(p.y + p.vy * dt, 0, WORLD.h);
+  p.stats.distance += Math.hypot(p.vx, p.vy) * dt;
 
   // fire
   p.fireCd -= dt;
@@ -597,7 +603,11 @@ function killEnemy(e) {
   boom(e.x, e.y, e.faction === "police" ? "#9fd8ff" : "#ff7a3c", e.elite ? 9 : 6);
   spawnLoot(e.x, e.y, e.elite);
   if (e.faction === "police") { addWanted(1); toast("You destroyed a police ship!"); }
-  else { player.credits += e.bounty; addRep(4); toast((e.elite ? "Elite pirate" : "Pirate") + " destroyed  +" + e.bounty + " cr"); }
+  else {
+    player.credits += e.bounty; addRep(4); toast((e.elite ? "Elite pirate" : "Pirate") + " destroyed  +" + e.bounty + " cr");
+    const st = player.stats; st.kills++; if (e.elite) st.eliteKills++;
+    if ([10, 25, 50, 100, 250].includes(st.kills)) toast("★ Milestone: " + st.kills + " pirates destroyed!", 3000);
+  }
   checkWin(); saveGame();
 }
 
@@ -649,6 +659,7 @@ function playerDestroyed() {
   const lost = Math.round(player.credits * 0.25);
   player.credits -= lost;
   for (const c of COMMODITIES) player.cargo[c] = 0;
+  player.stats.deaths++;
   const home = nearest(PLANETS);
   player.x = home.x; player.y = home.y - 200; player.vx = player.vy = 0;
   player.hull = player.maxHull; invuln = 3;
@@ -885,10 +896,45 @@ function render() {
     drawShip(psx, psy, player.a, SHIP_ART[player.shipType], "#36e0ff", "#cdfaff", z * playerScale(), keys["w"] || keys["arrowup"] || (touch.steer && touch.mag > 0.3));
   }
 
+  drawTargeting(toScreen, z);
   drawWaypoints();
   drawLowHull();
   drawHUD();
   drawMinimap();
+  if (paused) drawPauseOverlay();
+}
+
+// Bracket reticle around the nearest hostile; turns gold when a missile has locked on.
+function drawTargeting(toScreen, z) {
+  if (mapZoom) return;
+  const tgt = nearestHostile(player.x, player.y);
+  if (!tgt) return;
+  const d = dist(player.x, player.y, tgt.x, tgt.y);
+  if (d > 1100) return;
+  const [sx, sy] = toScreen(tgt.x, tgt.y);
+  const r = Math.max(16, 20 * z), locked = missiles.some(m => m.target === tgt);
+  const col = locked ? "#ffd24a" : "#ff6a7a", k = 7;
+  ctx.save();
+  ctx.strokeStyle = col; ctx.lineWidth = 1.6; ctx.shadowBlur = 6; ctx.shadowColor = col;
+  for (const [cx, cy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+    const x = sx + cx * r, y = sy + cy * r;
+    ctx.beginPath(); ctx.moveTo(x - cx * k, y); ctx.lineTo(x, y); ctx.lineTo(x, y - cy * k); ctx.stroke();
+  }
+  ctx.restore();
+  ctx.fillStyle = col; ctx.shadowBlur = 0; ctx.font = "10px 'Courier New', monospace"; ctx.textAlign = "center";
+  ctx.fillText((locked ? "◈LOCK " : "") + Math.round(d / 10) + "u", sx, sy - r - 6);
+  ctx.textAlign = "left";
+}
+
+function drawPauseOverlay() {
+  ctx.save();
+  ctx.fillStyle = "rgba(2,8,14,0.6)"; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = "#36e0ff"; ctx.shadowBlur = 12; ctx.shadowColor = "#36e0ff";
+  ctx.font = "32px 'Courier New', monospace"; ctx.textAlign = "center";
+  ctx.fillText("PAUSED", W / 2, H / 2 - 6);
+  ctx.shadowBlur = 0; ctx.fillStyle = "#9fd8e4"; ctx.font = "13px 'Courier New', monospace";
+  ctx.fillText("press Esc to resume", W / 2, H / 2 + 22);
+  ctx.textAlign = "left"; ctx.restore();
 }
 
 // Pulsing red border when the hull is critical — a clear "you're about to die" cue.
@@ -1128,7 +1174,46 @@ function drawMinimap() {
   for (const b of beacons) { ctx.beginPath(); ctx.arc(mx + b.x * sx, my + b.y * sy, 3, 0, TAU); ctx.fill(); }
   ctx.fillStyle = "#fff";
   ctx.beginPath(); ctx.arc(mx + player.x * sx, my + player.y * sy, big ? 4 : 3, 0, TAU); ctx.fill();
+  if (big) drawMapIntel(mx, my, sx, sy, mw, mh);
   ctx.restore();
+}
+
+// On the full map (M): market-event markers, the best place to sell your cargo, and a legend.
+function drawMapIntel(mx, my, sx, sy, mw, mh) {
+  ctx.fillStyle = "#36e0ff"; ctx.shadowBlur = 6; ctx.shadowColor = "#36e0ff";
+  ctx.font = "13px 'Courier New', monospace"; ctx.textAlign = "left";
+  ctx.fillText("GALACTIC MAP", mx + 6, my - 10);
+  ctx.shadowBlur = 0;
+
+  for (const ev of marketEvents) {                 // ▲ shortage / ▼ glut on affected planets
+    const pl = PLANETS.find(p => p.name === ev.planet); if (!pl) continue;
+    ctx.fillStyle = ev.kind === "boom" ? "#55ff99" : "#ff8a5a";
+    ctx.font = "13px 'Courier New', monospace"; ctx.textAlign = "center";
+    ctx.fillText(ev.kind === "boom" ? "▲" : "▼", mx + pl.x * sx + 13, my + pl.y * sy + 4);
+  }
+
+  // highlight where your most-valuable cargo sells highest
+  let bestC = null, bestQ = 0;
+  for (const c of COMMODITIES) { const q = player.cargo[c] * (PLANETS[0].mkt[c] || 1); if (q > bestQ) { bestQ = q; bestC = c; } }
+  ctx.textAlign = "left"; ctx.font = "10px 'Courier New', monospace";
+  if (bestC) {
+    let bestPl = null, bestPrice = -1;
+    for (const pl of PLANETS) { const pr = priceOf(pl, bestC); if (pr > bestPrice) { bestPrice = pr; bestPl = pl; } }
+    const px = mx + bestPl.x * sx, py = my + bestPl.y * sy, pulse = 0.5 + 0.4 * Math.sin(performance.now() / 240);
+    ctx.save(); ctx.globalAlpha = pulse; ctx.strokeStyle = "#55ff99"; ctx.lineWidth = 2; ctx.shadowBlur = 10; ctx.shadowColor = "#55ff99";
+    ctx.beginPath(); ctx.arc(px, py, 11, 0, TAU); ctx.stroke(); ctx.restore();
+    ctx.fillStyle = "#55ff99"; ctx.shadowBlur = 0;
+    ctx.fillText("BEST SELL: " + bestC + " @ " + bestPl.name + " (" + bestPrice + " cr)", mx + 6, my + mh + 16);
+  } else {
+    ctx.fillStyle = "#5a8c98";
+    ctx.fillText("hold empty — buy cargo to see best-sell routes", mx + 6, my + mh + 16);
+  }
+
+  const ly = my + mh + 30;
+  ctx.fillStyle = "#55ff99"; ctx.fillText("▲ shortage (sell)", mx + 6, ly);
+  ctx.fillStyle = "#ff8a5a"; ctx.fillText("▼ glut (buy)", mx + 140, ly);
+  ctx.fillStyle = "#ff4455"; ctx.fillText("● hostile", mx + 250, ly);
+  ctx.fillStyle = "#ffcc44"; ctx.fillText("● beacon", mx + 350, ly);
 }
 
 //======================================================================
@@ -1368,7 +1453,8 @@ function completeMissions() {             // fulfil any contract whose destinati
       player.credits += m.reward;
       player.missions.splice(i, 1);
       lastDeliveries.push({ commodity: m.commodity, qty: m.qty, reward: m.reward });
-      addRep(10);
+      addRep(10); player.stats.contracts++;
+      if ([5, 10, 25, 50].includes(player.stats.contracts)) toast("★ Milestone: " + player.stats.contracts + " contracts delivered!", 3000);
       toast("Contract complete! +" + m.reward.toLocaleString() + " cr", 3200);
       beep(660, 0.08, 0.09, "square"); setTimeout(() => beep(950, 0.12, 0.09, "square"), 90);
     }
@@ -1379,10 +1465,12 @@ function completeMissions() {             // fulfil any contract whose destinati
 // ---------- save / load progress (browser localStorage) ----------
 function saveGame() {
   try {
+    if (player.stats) player.stats.bestNet = Math.max(player.stats.bestNet || 0, netWorth());
     localStorage.setItem("stellarTraderSave", JSON.stringify({
       credits: player.credits, shipType: player.shipType, owned: player.owned,
       cargo: player.cargo, hull: player.hull, shield: player.shield, missions: player.missions,
       upgrades: player.upgrades, wanted: player.wanted, rep: player.rep, won: player.won,
+      stats: player.stats,
     }));
   } catch (e) {}
 }
@@ -1399,6 +1487,7 @@ function loadSaveInto(p) {
     if (typeof s.wanted === "number") p.wanted = s.wanted;
     if (typeof s.rep === "number") p.rep = s.rep;
     if (s.won) p.won = s.won;
+    if (s.stats) p.stats = Object.assign(freshStats(), s.stats);
     const def = SHIPS[p.shipType]; p.maxHull = def.hull; p.hull = Math.min(s.hull || def.hull, def.hull);
     p.shield = effMaxShield();
     return true;
@@ -1526,6 +1615,7 @@ function breakAsteroid(A) {
   burst(A.x, A.y, "#b0a090", 16); sfxBoom();
   const ore = 2 + Math.floor(Math.random() * 4);
   for (let i = 0; i < ore; i++) { const a = rand(0, TAU), s = rand(20, 80); loots.push({ x: A.x, y: A.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 16, kind: "Ore", amount: 1 }); }
+  player.stats.asteroids++;
   A.dead = true;
 }
 
@@ -1538,7 +1628,7 @@ function makePirateAt(x, y) {
 function spawnBeacon() { beacons.push({ x: rand(300, WORLD.w - 300), y: rand(300, WORLD.h - 300), trap: Math.random() < 0.45, life: 80 }); }
 function resolveBeacon(b) {
   if (b.trap) { toast("It was a trap — ambush!", 2800); for (let i = 0; i < 3; i++) { const a = rand(0, TAU); enemies.push(makePirateAt(b.x + Math.cos(a) * 130, b.y + Math.sin(a) * 130)); } }
-  else { const r = Math.round(rand(300, 900)); player.credits += r; toast("Rescued a stranded ship! +" + r + " cr", 3000); checkWin(); }
+  else { const r = Math.round(rand(300, 900)); player.credits += r; player.stats.rescues++; toast("Rescued a stranded ship! +" + r + " cr", 3000); checkWin(); }
   b.life = 0;
 }
 
@@ -1583,13 +1673,14 @@ function openPanel(tab) {
   const body = document.getElementById("panelBody");
   const used = cargoUsed(player), cap = effCargo();
 
-  const subLabel = tab === 'yard' ? 'SHIPYARD' : tab === 'contracts' ? 'CONTRACTS BOARD' : tab === 'upgrades' ? 'OUTFITTING' : 'TRADING POST · MARKET';
+  const subLabel = tab === 'yard' ? 'SHIPYARD' : tab === 'contracts' ? 'CONTRACTS BOARD' : tab === 'upgrades' ? 'OUTFITTING' : tab === 'log' ? "CAPTAIN'S LOG" : 'TRADING POST · MARKET';
   let html = `<h1>${pl.name.toUpperCase()}</h1><div class="sub">${subLabel} &nbsp;•&nbsp; <span style="color:#55ff99">SAFE ZONE</span></div>`;
   html += `<div class="tabs">
       <button class="tab ${tab==='market'?'active':''}" onclick="openPanel('market')">MARKET</button>
       <button class="tab ${tab==='contracts'?'active':''}" onclick="openPanel('contracts')">CONTRACTS</button>
       <button class="tab ${tab==='upgrades'?'active':''}" onclick="openPanel('upgrades')">UPGRADES</button>
       <button class="tab ${tab==='yard'?'active':''}" onclick="openPanel('yard')">SHIPYARD</button>
+      <button class="tab ${tab==='log'?'active':''}" onclick="openPanel('log')">LOG</button>
     </div>`;
   html += `<div style="display:flex;justify-content:space-between;margin-bottom:10px;font-size:13px">
       <span>CREDITS <span class="price">${player.credits.toLocaleString()}</span></span>
@@ -1660,6 +1751,26 @@ function openPanel(tab) {
         ${maxed ? '<button class="btn" disabled>MAXED</button>' : `<button class="btn" ${player.credits < cost ? 'disabled' : ''} onclick="buyUpgrade('${u.key}')">UPGRADE</button>`}</div></div>`;
     }
     if (player.wanted >= 1) html += `<button class="btn big" onclick="payFine()">PAY BOUNTY — ${(Math.ceil(player.wanted) * 1500).toLocaleString()} cr (clears your record)</button>`;
+  } else if (tab === "log") {
+    const st = player.stats;
+    const ownedCount = SHIP_ORDER.filter(k => player.owned[k]).length;
+    const rows = [
+      ["Rank", rankName()],
+      ["Net worth", netWorth().toLocaleString() + " cr"],
+      ["Best net worth", (st.bestNet || 0).toLocaleString() + " cr"],
+      ["Pirates destroyed", st.kills + (st.eliteKills ? " (" + st.eliteKills + " elite)" : "")],
+      ["Contracts delivered", st.contracts],
+      ["Asteroids mined", st.asteroids],
+      ["Ships rescued", st.rescues],
+      ["Ships lost", st.deaths],
+      ["Distance flown", (st.distance / 1000).toFixed(1) + " k units"],
+      ["Fleet owned", ownedCount + " / " + SHIP_ORDER.length + " ships"],
+    ];
+    html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">`;
+    for (const [k, v] of rows)
+      html += `<div class="shipcard" style="margin-bottom:0"><div class="nm" style="font-size:13px;color:#9fd8e4">${k}</div><div class="price" style="font-size:15px">${v}</div></div>`;
+    html += `</div>`;
+    html += `<div class="hint" style="margin-top:10px">${player.won ? '<span style="color:#55ff99">★ Trade Baron — you’ve won; keep flying for the high score.</span>' : 'Reach 250,000 net worth to win the game.'}</div>`;
   } else {
     for (const name of SHIP_ORDER) {
       const s = SHIPS[name], owned = !!player.owned[name], current = player.shipType === name;
@@ -1767,7 +1878,7 @@ function beep(freq, dur, vol, type) {
 //======================================================================
 function loop(t) {
   const dt = Math.min(0.05, (t - lastT) / 1000 || 0); lastT = t;
-  if (running) { update(dt); render(); }
+  if (running) { if (!paused && !dockedPlanet) update(dt); render(); }
   if (toastTimer > 0) { toastTimer -= dt; if (toastTimer <= 0) document.getElementById("toast").style.display = "none"; }
   requestAnimationFrame(loop);
 }

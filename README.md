@@ -22,6 +22,7 @@ It's a single self‑contained HTML file (plus ship sprites), no install needed.
 | `F` | launch homing missile (once fitted) |
 | `E` | dock / undock |
 | `M` | map zoom |
+| `Esc` | pause / resume |
 | `P` | toggle ambient music |
 
 On a phone or tablet, an on-screen **stick** (steer + thrust) and **FIRE / BOOST /
@@ -34,7 +35,12 @@ MSL / DOCK / MAP** buttons appear automatically.
   and **Contracts** to take delivery jobs.
 - Watch the **Galactic Market News** — random **shortages** (sell high) and
   **gluts** (buy cheap) pop up at stations and last a few visits.
-- An on-screen **waypoint arrow** points the way to each active contract.
+- An on-screen **waypoint arrow** points the way to each active contract, and a
+  **targeting reticle** marks the nearest hostile (gold when a missile locks on).
+- Open the **map** (`M`) for galactic trade intel: shortage/glut markers and a
+  highlight of where your current cargo sells highest.
+- The **Captain's Log** at any station tracks your kills, contracts, distance and
+  best net worth across sessions.
 - Planets are **safe zones** — no combat in or out while you're inside the circle.
 - **Pirates** hunt you; **traders** are neutral unless you shoot them; shooting
   peaceful ships raises your **wanted level** and brings the police. Enemies get
