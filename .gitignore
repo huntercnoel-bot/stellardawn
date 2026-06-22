@@ -1,3 +1,6 @@
+# Claude Code agent worktrees (temporary, never commit)
+.claude/
+
 # OS / editor cruft
 .DS_Store
 Thumbs.db
