@@ -2121,7 +2121,8 @@ function sendChat(text) {
   addChatMessage(chatName, text, false);
   broadcastChat(text);
 }
-function broadcastChat(text) { /* shared-chat transport hook — wired once a backend is chosen */ }
+let chatConnected = false;
+function broadcastChat(text) { /* replaced by the live transport once connected */ }
 function setupChat() {
   const ci = document.getElementById("chatInput"); if (!ci) return;
   ci.addEventListener("keydown", e => {
@@ -2129,9 +2130,42 @@ function setupChat() {
     if (e.key === "Enter") { sendChat(ci.value); ci.value = ""; ci.blur(); }
     else if (e.key === "Escape") { ci.value = ""; ci.blur(); }
   });
-  addChatMessage("", "Chat ready — press Enter to type, /name to rename.", true);
+  addChatMessage("", "Chat: press Enter to type · /name to rename. Connecting to sector…", true);
+}
+// Shared "everyone" chat over a free public MQTT-over-WebSocket broker (no signup).
+// mqtt.js is pulled from a CDN; if it can't load or connect, chat stays local-only.
+function setupNetChat() {
+  const URL = "wss://broker.emqx.io:8084/mqtt", TOPIC = "stellardawn/chat/global";
+  const clientId = "sd_" + Math.random().toString(16).slice(2, 10);
+  function connect() {
+    if (!window.mqtt) { addChatMessage("", "shared chat unavailable — messages are local only", true); return; }
+    let client;
+    try { client = window.mqtt.connect(URL, { clientId, clean: true, connectTimeout: 8000, reconnectPeriod: 5000 }); }
+    catch (e) { addChatMessage("", "shared chat unavailable — messages are local only", true); return; }
+    client.on("connect", () => { chatConnected = true; client.subscribe(TOPIC); addChatMessage("", "connected to sector chat — say hi!", true); });
+    client.on("close", () => { chatConnected = false; });
+    client.on("message", (t, payload) => {
+      try {
+        const d = JSON.parse(payload.toString());
+        if (!d || d.id === clientId || !d.t) return;                 // skip our own echoes / empties
+        addChatMessage(String(d.n || "pilot").slice(0, 16), String(d.t).slice(0, 160), false);
+        beep(880, 0.03, 0.04, "square");
+      } catch (e) {}
+    });
+    broadcastChat = function (text) {
+      if (chatConnected) { try { client.publish(TOPIC, JSON.stringify({ n: chatName, t: text, id: clientId })); } catch (e) {} }
+    };
+  }
+  try {
+    if (window.mqtt) { connect(); return; }
+    const s = document.createElement("script");
+    s.src = "https://unpkg.com/mqtt/dist/mqtt.min.js"; s.onload = connect;
+    s.onerror = () => addChatMessage("", "shared chat unavailable (offline) — messages are local only", true);
+    (document.head || document.documentElement).appendChild(s);
+  } catch (e) {}
 }
 setupChat();
+setupNetChat();
 
 requestAnimationFrame(loop);
 </script>
