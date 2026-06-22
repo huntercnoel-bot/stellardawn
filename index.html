@@ -1544,6 +1544,11 @@ function inSafeZone(x, y) {
 
 function drawHUD() {
   ctx.save();
+  // readability backdrop behind the core HUD (keeps stats legible over bright nebula/planets)
+  const hudH = 130 + player.missions.length * 15 + 26;
+  ctx.fillStyle = "rgba(2,10,18,0.42)";
+  if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(12, 14, 270, hudH, 8); ctx.fill(); }
+  else ctx.fillRect(12, 14, 270, hudH);
   ctx.font = "14px 'Courier New', monospace"; ctx.textAlign = "left";
   ctx.fillStyle = "#36e0ff"; ctx.shadowBlur = 6; ctx.shadowColor = "#36e0ff";
   const used = cargoUsed(player), cap = effCargo();
