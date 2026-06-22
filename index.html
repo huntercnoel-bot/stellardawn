@@ -703,7 +703,7 @@ function fireMissile() {
   missiles.push({
     x: player.x + Math.cos(a) * off, y: player.y + Math.sin(a) * off,
     vx: Math.cos(a) * 260 + player.vx, vy: Math.sin(a) * 260 + player.vy,
-    a, life: 4.2, dmg: 46 * (1 + 0.25 * up("damage")), target: null,
+    a, life: 4.2, dmg: 46 * (1 + 0.32 * up("damage")), target: null,
   });
   beep(300, 0.12, 0.09, "sawtooth"); setTimeout(() => beep(520, 0.08, 0.07, "sawtooth"), 60);
 }
@@ -1574,21 +1574,24 @@ function toggleMusic() {
 // ===================== COMBAT / PROGRESSION SYSTEMS =====================
 // effective stats = ship base modified by bought upgrades
 function up(k) { return (player.upgrades && player.upgrades[k]) || 0; }
-function effDmg()       { return shipDef(player).dmg * (1 + 0.25 * up("damage")); }
-function effFireRate()  { return shipDef(player).fireRate * Math.pow(0.87, up("fireRate")); }
-function effMaxSpd()    { return shipDef(player).maxSpd * (1 + 0.08 * up("engine")); }
-function effAccel()     { return shipDef(player).accel * (1 + 0.10 * up("engine")); }
-function effCargo()     { return shipDef(player).cargo + 5 * up("cargo"); }
-function effMaxShield() { return (shipDef(player).shield || 0) + 25 * up("shield"); }
+function effDmg()       { return shipDef(player).dmg * (1 + 0.32 * up("damage")); }
+function effFireRate()  { return shipDef(player).fireRate * Math.pow(0.85, up("fireRate")); }
+function effMaxSpd()    { return shipDef(player).maxSpd * (1 + 0.10 * up("engine")); }
+function effAccel()     { return shipDef(player).accel * (1 + 0.13 * up("engine")); }
+function effCargo()     { return shipDef(player).cargo + 8 * up("cargo"); }
+function effMaxShield() { return (shipDef(player).shield || 0) + 35 * up("shield"); }
 
+// Deeper upgrade tracks (max 8) with bigger per-level effects; costs ramp so the
+// fat Warlord/contract bounties always have something worth sinking credits into.
+const rampCost = (base) => (l) => Math.round(base * (l + 1) * (1 + l * 0.12));
 const UPGRADES = [
-  { key: "damage",   name: "Weapon Damage",        max: 5, cost: l => 800 * (l + 1) },
-  { key: "fireRate", name: "Fire Rate",            max: 5, cost: l => 800 * (l + 1) },
-  { key: "shield",   name: "Shield Capacity",      max: 5, cost: l => 700 * (l + 1) },
-  { key: "engine",   name: "Engine Boost",         max: 5, cost: l => 700 * (l + 1) },
-  { key: "cargo",    name: "Cargo Bay (+5)",       max: 5, cost: l => 600 * (l + 1) },
-  { key: "spread",   name: "Spread Cannon (3-shot)", max: 1, cost: () => 4000 },
-  { key: "missiles", name: "Homing Missiles [F]",  max: 1, cost: () => 3500 },
+  { key: "damage",   name: "Weapon Damage (+32%/lvl)",  max: 8, cost: rampCost(700) },
+  { key: "fireRate", name: "Fire Rate (+15%/lvl)",      max: 8, cost: rampCost(700) },
+  { key: "shield",   name: "Shield Capacity (+35/lvl)", max: 8, cost: rampCost(650) },
+  { key: "engine",   name: "Engine Boost (+10%/lvl)",   max: 8, cost: rampCost(650) },
+  { key: "cargo",    name: "Cargo Hold (+8/lvl)",       max: 8, cost: rampCost(550) },
+  { key: "spread",   name: "Spread Cannon (3-shot)",    max: 1, cost: () => 4000 },
+  { key: "missiles", name: "Homing Missiles [F]",       max: 1, cost: () => 3500 },
 ];
 function buyUpgrade(key) {
   const u = UPGRADES.find(u => u.key === key); if (!u) return;
