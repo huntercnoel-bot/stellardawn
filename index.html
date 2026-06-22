@@ -146,6 +146,12 @@
     font-family: inherit; font-size: 12px; padding: 6px 9px; border-radius: 4px; outline: none;
   }
   #chatInput:focus { border-color: var(--neon); box-shadow: 0 0 8px rgba(54,224,255,0.4); }
+
+  /* pause menu (Esc): volume + log out */
+  #pauseMenu { position: fixed; inset: 0; z-index: 28; display: none; align-items: center; justify-content: center; background: rgba(2,8,14,0.72); }
+  #pauseMenu.show { display: flex; }
+  #volBar { width: 170px; height: 12px; border: 1px solid var(--neon); position: relative; background: #07212c; }
+  #volFill { height: 100%; width: 70%; background: var(--neon); box-shadow: 0 0 8px var(--neon); }
 </style>
 </head>
 <body>
@@ -176,6 +182,21 @@
 
 <div id="panel"><div class="window" id="panelBody"></div></div>
 
+<div id="pauseMenu"><div class="window" style="width:min(420px,90vw);text-align:center">
+  <h1>PAUSED</h1>
+  <div class="sub">// systems on standby //</div>
+  <div style="margin:16px 0 6px;color:#9fd8e4;font-size:12px;letter-spacing:1px">MASTER VOLUME</div>
+  <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:4px">
+    <button class="btn" onclick="changeVolume(-0.1)">&#8211; VOL</button>
+    <div id="volBar"><div id="volFill"></div></div>
+    <button class="btn" onclick="changeVolume(0.1)">VOL +</button>
+  </div>
+  <div id="volPct" style="color:var(--amber);font-size:12px">70%</div>
+  <button class="btn big" onclick="resumeGame()">RESUME [Esc]</button>
+  <button class="btn big" style="margin-top:8px" onclick="toggleMusic()">TOGGLE MUSIC [P]</button>
+  <button class="btn big" style="margin-top:8px;border-color:var(--red);color:var(--red)" onclick="logOut()">LOG OUT</button>
+</div></div>
+
 <div id="intro"><div class="window">
   <h1>STELLAR&nbsp;DAWN</h1>
   <div class="sub">// space trading + combat //</div>
@@ -190,7 +211,7 @@
   </p>
   <p style="color:#ffcc44">
     <kbd>W</kbd> thrust &nbsp; <kbd>S</kbd> brake &nbsp; <kbd>A</kbd>/<kbd>D</kbd> turn &nbsp; <kbd>Shift</kbd> boost<br>
-    <kbd>Space</kbd> fire &nbsp; <kbd>F</kbd> missile &nbsp; <kbd>E</kbd> dock/undock &nbsp; <kbd>M</kbd> map &nbsp; <kbd>Enter</kbd> chat &nbsp; <kbd>Esc</kbd> pause &nbsp; <kbd>P</kbd> music<br>
+    <kbd>Space</kbd> fire &nbsp; <kbd>F</kbd> missile &nbsp; <kbd>E</kbd> dock/undock &nbsp; <kbd>M</kbd> map &nbsp; <kbd>Enter</kbd> chat &nbsp; <kbd>Esc</kbd> menu &nbsp; <kbd>P</kbd> music<br>
     <span style="color:#7fc8d6">On a phone or tablet? Use the on-screen stick &amp; buttons.</span>
   </p>
   <button class="btn big" onclick="startGame()">LAUNCH</button>
@@ -450,7 +471,7 @@ addEventListener("keydown", e => {
   if (e.key.toLowerCase() === "f") fireMissile();
   if (e.key.toLowerCase() === "m") mapZoom = mapZoom ? 0 : 1;
   if (e.key.toLowerCase() === "p") toggleMusic();
-  if (e.key === "Escape" && running && !dockedPlanet) { paused = !paused; toast(paused ? "Paused — press Esc to resume" : "Resumed", 1200); }
+  if (e.key === "Escape" && running && !dockedPlanet) { showPause(!paused); }
 });
 addEventListener("keyup", e => { if (typingInChat()) return; keys[e.key.toLowerCase()] = false; });
 
@@ -946,7 +967,6 @@ function render() {
   drawHUD();
   drawBossBar();
   drawMinimap();
-  if (paused) drawPauseOverlay();
 }
 
 // Prominent top-center health bar while a Pirate Warlord is alive.
@@ -987,17 +1007,6 @@ function drawTargeting(toScreen, z) {
   ctx.textAlign = "left";
 }
 
-function drawPauseOverlay() {
-  ctx.save();
-  ctx.fillStyle = "rgba(2,8,14,0.6)"; ctx.fillRect(0, 0, W, H);
-  ctx.fillStyle = "#36e0ff"; ctx.shadowBlur = 12; ctx.shadowColor = "#36e0ff";
-  ctx.font = "32px 'Courier New', monospace"; ctx.textAlign = "center";
-  ctx.fillText("PAUSED", W / 2, H / 2 - 6);
-  ctx.shadowBlur = 0; ctx.fillStyle = "#9fd8e4"; ctx.font = "13px 'Courier New', monospace";
-  ctx.fillText("press Esc to resume", W / 2, H / 2 + 22);
-  ctx.textAlign = "left"; ctx.restore();
-}
-
 // Pulsing red border when the hull is critical — a clear "you're about to die" cue.
 function drawLowHull() {
   const hp = player.hull / player.maxHull;
@@ -1034,25 +1043,70 @@ function drawWaypoints() {
   ctx.textAlign = "left";
 }
 
-function drawPlanet(sx, sy, r, pl) {
+// Stable, seeded surface features per planet (gas-giant bands or rocky craters + caps + ring).
+function planetFeat(pl) {
+  if (pl._feat) return pl._feat;
+  let h = 0; for (let i = 0; i < pl.name.length; i++) h = (h * 31 + pl.name.charCodeAt(i)) >>> 0;
+  const rnd = () => { h = (h * 1664525 + 1013904223) >>> 0; return h / 4294967296; };
+  const gas = rnd() < 0.45;
+  const f = { gas, bands: [], craters: [], ring: gas && rnd() < 0.6, tilt: rnd() * 0.5 - 0.25, caps: !gas && rnd() < 0.7 };
+  if (gas) { const n = 2 + Math.floor(rnd() * 3); for (let i = 0; i < n; i++) f.bands.push({ y: rnd() * 1.4 - 0.7, w: 0.1 + rnd() * 0.16, sh: rnd() < 0.5 ? 0.2 : -0.24 }); }
+  else { const n = 3 + Math.floor(rnd() * 4); for (let i = 0; i < n; i++) { const a = rnd() * TAU, rr = rnd() * 0.68; f.craters.push({ x: Math.cos(a) * rr, y: Math.sin(a) * rr, s: 0.06 + rnd() * 0.12 }); } }
+  pl._feat = f; return f;
+}
+function drawPlanetRing(sx, sy, r, col, tilt, front) {
   ctx.save();
-  // glow ring
-  ctx.shadowBlur = 30; ctx.shadowColor = pl.col;
-  ctx.strokeStyle = pl.col; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.arc(sx, sy, r, 0, TAU); ctx.stroke();
+  ctx.beginPath();
+  if (front) ctx.rect(sx - r * 2.4, sy, r * 4.8, r * 2.4); else ctx.rect(sx - r * 2.4, sy - r * 2.4, r * 4.8, r * 2.4);
+  ctx.clip();
+  ctx.translate(sx, sy); ctx.rotate(tilt);
+  ctx.strokeStyle = hexA(shade(col, 0.3), 0.55); ctx.lineWidth = r * 0.11;
+  ctx.beginPath(); ctx.ellipse(0, 0, r * 1.75, r * 0.52, 0, 0, TAU); ctx.stroke();
+  ctx.strokeStyle = hexA(shade(col, -0.15), 0.4); ctx.lineWidth = r * 0.045;
+  ctx.beginPath(); ctx.ellipse(0, 0, r * 1.42, r * 0.42, 0, 0, TAU); ctx.stroke();
+  ctx.restore();
+}
+function drawPlanet(sx, sy, r, pl) {
+  const f = planetFeat(pl), col = pl.col;
+  ctx.save();
+  // atmosphere halo
+  const halo = ctx.createRadialGradient(sx, sy, r * 0.82, sx, sy, r * 1.4);
+  halo.addColorStop(0, hexA(col, 0.32)); halo.addColorStop(1, hexA(col, 0));
+  ctx.fillStyle = halo; ctx.beginPath(); ctx.arc(sx, sy, r * 1.4, 0, TAU); ctx.fill();
+  if (f.ring) drawPlanetRing(sx, sy, r, col, f.tilt, false);   // back of ring
+  // planet body, lit from upper-left
+  const lx = sx - r * 0.34, ly = sy - r * 0.34;
+  const g = ctx.createRadialGradient(lx, ly, r * 0.1, sx, sy, r * 1.06);
+  g.addColorStop(0, shade(col, 0.55)); g.addColorStop(0.45, shade(col, 0.04));
+  g.addColorStop(0.8, shade(col, -0.38)); g.addColorStop(1, shade(col, -0.72));
+  ctx.beginPath(); ctx.arc(sx, sy, r, 0, TAU); ctx.fillStyle = g; ctx.fill();
+  // surface detail (clipped to the disc)
+  ctx.save(); ctx.beginPath(); ctx.arc(sx, sy, r, 0, TAU); ctx.clip();
+  if (f.gas) {
+    for (const b of f.bands) { ctx.fillStyle = hexA(shade(col, b.sh), 0.5); ctx.beginPath(); ctx.ellipse(sx, sy + b.y * r, r * 1.02, b.w * r, 0, 0, TAU); ctx.fill(); }
+  } else {
+    for (const c of f.craters) { ctx.fillStyle = hexA(shade(col, -0.32), 0.42); ctx.beginPath(); ctx.arc(sx + c.x * r, sy + c.y * r, c.s * r, 0, TAU); ctx.fill(); }
+    if (f.caps) { ctx.fillStyle = hexA("#ffffff", 0.38); ctx.beginPath(); ctx.ellipse(sx, sy - r * 0.9, r * 0.5, r * 0.22, 0, 0, TAU); ctx.fill(); ctx.beginPath(); ctx.ellipse(sx, sy + r * 0.9, r * 0.5, r * 0.22, 0, 0, TAU); ctx.fill(); }
+  }
+  // terminator shadow toward lower-right + specular highlight
+  const term = ctx.createRadialGradient(sx - r * 0.4, sy - r * 0.4, r * 0.2, sx + r * 0.55, sy + r * 0.55, r * 1.45);
+  term.addColorStop(0, "rgba(0,0,0,0)"); term.addColorStop(0.68, "rgba(0,0,0,0)"); term.addColorStop(1, "rgba(0,0,0,0.55)");
+  ctx.fillStyle = term; ctx.fillRect(sx - r, sy - r, r * 2, r * 2);
+  const spec = ctx.createRadialGradient(lx, ly, 0, lx, ly, r * 0.55);
+  spec.addColorStop(0, "rgba(255,255,255,0.45)"); spec.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = spec; ctx.beginPath(); ctx.arc(lx, ly, r * 0.55, 0, TAU); ctx.fill();
+  ctx.restore();
+  // bright atmospheric rim on the lit limb
+  ctx.lineWidth = Math.max(1, r * 0.035); ctx.strokeStyle = hexA(shade(col, 0.65), 0.6);
+  ctx.beginPath(); ctx.arc(sx, sy, r * 0.99, Math.PI * 1.02, Math.PI * 1.78); ctx.stroke();
+  if (f.ring) drawPlanetRing(sx, sy, r, col, f.tilt, true);    // front of ring
+  // labels
+  ctx.fillStyle = col; ctx.font = "13px 'Courier New', monospace"; ctx.textAlign = "center";
+  ctx.shadowBlur = 6; ctx.shadowColor = col;
+  ctx.fillText(pl.name.toUpperCase(), sx, sy + r + 22);
   ctx.shadowBlur = 0;
-  // inner wire detail
-  ctx.globalAlpha = 0.5;
-  ctx.beginPath(); ctx.arc(sx, sy, r * 0.62, 0, TAU); ctx.stroke();
-  ctx.beginPath(); ctx.ellipse(sx, sy, r, r * 0.34, 0, 0, TAU); ctx.stroke();
-  ctx.globalAlpha = 1;
-  // label
-  ctx.fillStyle = pl.col; ctx.font = "13px 'Courier New', monospace"; ctx.textAlign = "center";
-  ctx.shadowBlur = 6; ctx.shadowColor = pl.col;
-  ctx.fillText(pl.name.toUpperCase(), sx, sy + r + 18);
-  ctx.shadowBlur = 0;
-  ctx.fillStyle = "#5a8c98"; ctx.font = "10px 'Courier New', monospace";
-  ctx.fillText(pl.desc, sx, sy + r + 32);
+  ctx.fillStyle = "#7fb0bd"; ctx.font = "10px 'Courier New', monospace";
+  ctx.fillText(pl.desc, sx, sy + r + 36);
   ctx.restore();
 }
 
@@ -1325,6 +1379,10 @@ function stationSceneSVG(pl) {
     <linearGradient id="metalG" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#46566a"/><stop offset="100%" stop-color="#1b2531"/></linearGradient>
     <linearGradient id="holoG" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#36e0ff" stop-opacity="0.5"/><stop offset="100%" stop-color="#36e0ff" stop-opacity="0.05"/></linearGradient>
     <pattern id="hazard" width="24" height="18" patternUnits="userSpaceOnUse"><rect width="24" height="18" fill="#1a1808"/><polygon points="0,18 12,0 24,0 12,18" fill="#d8b020"/></pattern>
+    <radialGradient id="skyPlanet" cx="38%" cy="34%" r="72%"><stop offset="0%" stop-color="${shade(col, 0.5)}"/><stop offset="55%" stop-color="${col}"/><stop offset="100%" stop-color="${shade(col, -0.72)}"/></radialGradient>
+    <radialGradient id="nebA" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="${hexA(col, 0.5)}"/><stop offset="100%" stop-color="${hexA(col, 0)}"/></radialGradient>
+    <radialGradient id="nebB" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="rgba(150,90,255,0.4)"/><stop offset="100%" stop-color="rgba(150,90,255,0)"/></radialGradient>
+    <filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="18"/></filter>
   </defs>
 
   <rect width="1280" height="720" fill="url(#groundG)"/>
@@ -1335,9 +1393,35 @@ function stationSceneSVG(pl) {
     <circle cx="1000" cy="30" r="1.2"/><circle cx="1110" cy="58" r="1"/><circle cx="1210" cy="26" r="1.3"/>
   </g>
 
+  <!-- nebula clouds -->
+  <g opacity="0.6"><ellipse cx="300" cy="92" rx="280" ry="92" fill="url(#nebB)" filter="url(#soft)"/><ellipse cx="980" cy="74" rx="330" ry="110" fill="url(#nebA)" filter="url(#soft)"/></g>
+  <!-- distant ringed planet + small moon -->
+  <g filter="url(#stnglow)">
+    <ellipse cx="1040" cy="84" rx="150" ry="34" fill="none" stroke="${hexA(col, 0.45)}" stroke-width="6"/>
+    <circle cx="1040" cy="84" r="58" fill="url(#skyPlanet)"/>
+    <ellipse cx="1040" cy="84" rx="150" ry="34" fill="none" stroke="${hexA(col, 0.3)}" stroke-width="3" stroke-dasharray="3 7"/>
+  </g>
+  <circle cx="208" cy="58" r="17" fill="${shade(col, 0.2)}" opacity="0.7"/>
+  <!-- traffic drones with light streaks -->
+  <g stroke="${hexA(col, 0.5)}" stroke-width="1.5"><line x1="520" y1="70" x2="544" y2="73"/><line x1="690" y1="112" x2="710" y2="114"/></g>
+  <g fill="${col}" filter="url(#stnglow)"><circle cx="520" cy="70" r="2.6"/><circle cx="690" cy="112" r="2.1"/></g>
+
   <!-- ridge + snowy peak -->
   <path d="M0,170 L150,140 L260,160 L380,130 L520,158 L660,134 L800,160 L940,128 L1060,156 L1180,134 L1280,158 L1280,200 L0,200 Z" fill="#10151b" stroke="#262d35" stroke-width="1.5"/>
   <path d="M930,128 L1000,96 L1075,128 L1160,108 L1280,138 L1280,160 L930,160 Z" fill="#c3ccd4" opacity="0.4"/>
+
+  <!-- distant city skyline on the ridge -->
+  <g fill="#0a0e15" stroke="#1a2331" stroke-width="1">
+    <rect x="120" y="150" width="22" height="42"/><rect x="150" y="138" width="14" height="54"/><rect x="300" y="146" width="26" height="46"/>
+    <rect x="332" y="156" width="16" height="36"/><rect x="560" y="150" width="18" height="42"/><rect x="586" y="140" width="22" height="52"/>
+    <rect x="700" y="154" width="16" height="38"/><rect x="860" y="146" width="24" height="46"/><rect x="892" y="158" width="14" height="34"/>
+    <rect x="1180" y="150" width="20" height="42"/><rect x="1206" y="142" width="14" height="50"/>
+  </g>
+  <g fill="#ffcf7a" opacity="0.8">
+    <rect x="126" y="158" width="4" height="4"/><rect x="134" y="166" width="4" height="4"/><rect x="154" y="148" width="4" height="4"/><rect x="156" y="162" width="4" height="4"/>
+    <rect x="306" y="154" width="4" height="4"/><rect x="314" y="166" width="4" height="4"/><rect x="592" y="150" width="4" height="4"/><rect x="598" y="164" width="4" height="4"/>
+    <rect x="866" y="154" width="4" height="4"/><rect x="874" y="168" width="4" height="4"/><rect x="1186" y="158" width="4" height="4"/><rect x="1210" y="152" width="4" height="4"/>
+  </g>
 
   <!-- launch rockets with blue exhaust -->
   <g filter="url(#stnglow)" stroke="#36e0ff" stroke-width="3" fill="#36e0ff">
@@ -1359,6 +1443,11 @@ function stationSceneSVG(pl) {
       <rect x="240" y="426" width="7" height="160"/><rect x="1010" y="220" width="7" height="210"/>
     </g>
     <rect x="0" y="428.5" width="1280" height="2" fill="#ffc070" opacity="0.8"/>
+  </g>
+
+  <!-- coloured glow pools grounding each zone -->
+  <g opacity="0.22" filter="url(#soft)">
+    <ellipse cx="200" cy="662" rx="180" ry="40" fill="${col}"/><ellipse cx="640" cy="664" rx="210" ry="46" fill="${col}"/><ellipse cx="1070" cy="662" rx="180" ry="40" fill="${col}"/>
   </g>
 
   <!-- ===== LEFT ZONE: TRADING POST ===== -->
@@ -1627,29 +1716,88 @@ function boom(x, y, col, power) {
 }
 function sfxBoom() {
   try {
-    if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+    audioCtx();
     const dur = 0.35, sr = actx.sampleRate, n = (sr * dur) | 0;
     const buf = actx.createBuffer(1, n, sr), d = buf.getChannelData(0);
     for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 2);
     const src = actx.createBufferSource(); src.buffer = buf;
     const f = actx.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = 900;
     const g = actx.createGain(); g.gain.value = 0.28;
-    src.connect(f); f.connect(g); g.connect(actx.destination); src.start();
+    src.connect(f); f.connect(g); g.connect(masterOut()); src.start();
   } catch (e) {}
 }
+// Subtle generative space ambience: a slow open-fifth pad with a drifting filter,
+// plus the occasional soft bell. Everything routes through the master volume.
+let musicTimer = null;
+function startMusic() {
+  audioCtx();
+  const out = masterOut();
+  const bus = actx.createGain(); bus.gain.value = 0.0001; bus.connect(out);
+  bus.gain.exponentialRampToValueAtTime(0.09, actx.currentTime + 5);     // slow swell-in
+  const filt = actx.createBiquadFilter(); filt.type = "lowpass"; filt.frequency.value = 500; filt.Q.value = 4; filt.connect(bus);
+  const lfo = actx.createOscillator(); lfo.frequency.value = 0.045;
+  const lfg = actx.createGain(); lfg.gain.value = 280; lfo.connect(lfg); lfg.connect(filt.frequency); lfo.start();
+  const pad = actx.createGain(); pad.gain.value = 0.5; pad.connect(filt);
+  const chord = [55, 110, 164.81, 220, 329.63];                          // A1 A2 E3 A3 E4 — open, spacey
+  const oscs = chord.map((f, i) => {
+    const o = actx.createOscillator(); o.type = i < 2 ? "sine" : "triangle"; o.frequency.value = f; o.detune.value = (i - 2) * 5;
+    const og = actx.createGain(); og.gain.value = 0.42 / (i + 1); o.connect(og); og.connect(pad); o.start(); return o;
+  });
+  const trem = actx.createOscillator(); trem.frequency.value = 0.08;
+  const trg = actx.createGain(); trg.gain.value = 0.16; trem.connect(trg); trg.connect(pad.gain); trem.start();
+  musicNodes = [bus, filt, lfo, lfg, pad, trem, ...oscs];
+  const scale = [440, 523.25, 587.33, 659.25, 783.99, 880];             // pentatonic bells
+  function bell() {
+    if (!musicOn || !actx) return;
+    const t0 = actx.currentTime, f = scale[Math.floor(Math.random() * scale.length)];
+    const o = actx.createOscillator(); o.type = "sine"; o.frequency.value = f;
+    const g = actx.createGain(); g.gain.value = 0.0001; o.connect(g);
+    let tail = g;
+    if (actx.createStereoPanner) { const p = actx.createStereoPanner(); p.pan.value = rand(-0.6, 0.6); g.connect(p); tail = p; }
+    tail.connect(out);
+    g.gain.exponentialRampToValueAtTime(0.05, t0 + 0.5);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 3.4);
+    o.start(t0); o.stop(t0 + 3.6);
+    musicTimer = setTimeout(bell, rand(5500, 12000));
+  }
+  musicOn = true;
+  musicTimer = setTimeout(bell, 4000);
+}
+function stopMusic() {
+  if (musicTimer) { clearTimeout(musicTimer); musicTimer = null; }
+  if (musicNodes) {
+    const t = actx ? actx.currentTime : 0;
+    musicNodes.forEach(n => { try { n.stop && n.stop(t + 0.3); } catch (e) {} });
+    setTimeout(() => { if (musicNodes) { musicNodes.forEach(n => { try { n.disconnect && n.disconnect(); } catch (e) {} }); musicNodes = null; } }, 400);
+  }
+  musicOn = false;
+}
 function toggleMusic() {
-  try {
-    if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
-    if (musicOn) { musicNodes.forEach(n => { try { n.stop && n.stop(); } catch (e) {} }); musicNodes = null; musicOn = false; toast("Ambient music off"); return; }
-    const g = actx.createGain(); g.gain.value = 0.05; g.connect(actx.destination);
-    const oscs = [55, 82.4, 110, 164.8].map(f => {
-      const o = actx.createOscillator(); o.type = "sine"; o.frequency.value = f;
-      const og = actx.createGain(); og.gain.value = 0.5; o.connect(og); og.connect(g); o.start(); return o;
-    });
-    const lfo = actx.createOscillator(); lfo.frequency.value = 0.07;
-    const lg = actx.createGain(); lg.gain.value = 0.025; lfo.connect(lg); lg.connect(g.gain); lfo.start();
-    musicNodes = [...oscs, lfo, g]; musicOn = true; toast("Ambient music on");
-  } catch (e) {}
+  try { if (musicOn) { stopMusic(); toast("Ambient music off"); } else { startMusic(); toast("Ambient music on"); } } catch (e) {}
+}
+
+//======================================================================
+//  PAUSE MENU (Esc) — master volume + log out
+//======================================================================
+function refreshVolUI() {
+  const f = document.getElementById("volFill"); if (f) f.style.width = Math.round(masterVolume * 100) + "%";
+  const p = document.getElementById("volPct"); if (p) p.textContent = Math.round(masterVolume * 100) + "%";
+}
+function changeVolume(d) { setMasterVolume(masterVolume + d); refreshVolUI(); beep(660, 0.04, 0.05, "square"); }
+function showPause(on) {
+  paused = on;
+  const m = document.getElementById("pauseMenu"); if (m) m.classList.toggle("show", on);
+  if (on) { for (const k in keys) keys[k] = false; refreshVolUI(); }
+}
+function resumeGame() { showPause(false); }
+function logOut() {
+  showPause(false); running = false;
+  try { saveGame(); } catch (e) {}
+  stopMusic();
+  document.getElementById("station").classList.remove("show");
+  document.getElementById("panel").style.display = "none";
+  if (touchEnabled) document.getElementById("touch").classList.remove("show");
+  document.getElementById("intro").style.display = "flex";
 }
 
 // ===================== COMBAT / PROGRESSION SYSTEMS =====================
@@ -2005,14 +2153,31 @@ function undock() {
 //======================================================================
 //  AUDIO (tiny WebAudio blips — optional juice)
 //======================================================================
-let actx = null;
+let actx = null, masterGain = null;
+let masterVolume = (() => { try { const v = parseFloat(localStorage.getItem("stellarVol")); return isNaN(v) ? 0.7 : clamp(v, 0, 1); } catch (e) { return 0.7; } })();
+// Lazily create the audio context + a single master gain that ALL sound routes through.
+function audioCtx() {
+  if (!actx) {
+    actx = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = actx.createGain(); masterGain.gain.value = masterVolume; masterGain.connect(actx.destination);
+  }
+  if (actx.state === "suspended") { try { actx.resume(); } catch (e) {} }
+  return actx;
+}
+function masterOut() { audioCtx(); return masterGain; }
+function setMasterVolume(v) {
+  masterVolume = clamp(v, 0, 1);
+  try { localStorage.setItem("stellarVol", masterVolume.toFixed(2)); } catch (e) {}
+  if (masterGain) masterGain.gain.value = masterVolume;
+  return masterVolume;
+}
 function beep(freq, dur, vol, type) {
   try {
-    if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+    audioCtx();
     const o = actx.createOscillator(), g = actx.createGain();
     o.type = type || "square"; o.frequency.value = freq;
     g.gain.value = vol || 0.05;
-    o.connect(g); g.connect(actx.destination);
+    o.connect(g); g.connect(masterOut());
     o.start(); g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + dur);
     o.stop(actx.currentTime + dur);
   } catch (e) {}
@@ -2034,6 +2199,7 @@ function startGame() {
   const loaded = loadSaveInto(player);  // restore credits / ship / cargo / upgrades if saved
   if (!loaded && sandboxMode) player.credits = 99999;   // fresh sandbox start
   running = true;
+  if (!musicOn) try { startMusic(); } catch (e) {}     // LAUNCH click lets us start audio
   // begin docked at a RANDOM home base — safe until you choose to undock
   const home = PLANETS[Math.floor(Math.random() * PLANETS.length)];
   player.x = home.x; player.y = home.y; player.vx = 0; player.vy = 0; player.a = -Math.PI / 2;

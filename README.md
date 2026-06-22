@@ -23,7 +23,7 @@ It's a single self‑contained HTML file (plus ship sprites), no install needed.
 | `E` | dock / undock |
 | `M` | map zoom |
 | `Enter` | open chat (type a message) |
-| `Esc` | pause / resume |
+| `Esc` | pause menu (master volume · log out) |
 | `P` | toggle ambient music |
 
 On a phone or tablet, an on-screen **stick** (steer + thrust) and **FIRE / BOOST /
@@ -52,6 +52,8 @@ MSL / DOCK / MAP** buttons appear automatically.
   fat bounty. Only one stalks the cluster at a time.
 - Mine **asteroids** for ore, answer **distress beacons** (reward… or ambush),
   and grow your **net worth** to rank up. Reach 250,000 to become a Trade Baron.
+- Subtle generative **space music** plays as you fly — set the master volume or
+  log out from the **Esc** menu, or toggle music with `P`.
 - Progress saves automatically in your browser.
 
 ## Files
