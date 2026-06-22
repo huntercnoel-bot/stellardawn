@@ -55,6 +55,21 @@
   .zone .hl { opacity: 0; transition: opacity .12s; }
   .zone:hover .hl { opacity: 1; }
   .zone:hover .zlabel { fill: #ffffff; }
+  /* ambient station life (SVG injected into #stationScene) */
+  .ambient .twinkle circle { animation: stnTwinkle 2.6s ease-in-out infinite; }
+  .ambient .twinkle .d1 { animation-delay: .9s; }
+  .ambient .twinkle .d2 { animation-delay: 1.7s; }
+  .ambient .crowd .leg { animation: stnStep .5s ease-in-out infinite; transform-origin: top center; }
+  .ambient .crowd .lB { animation-delay: .25s; }
+  .ambient .rise circle, .ambient .rise ellipse { animation: stnRise 4s ease-in-out infinite; }
+  .ambient .rise .d1 { animation-delay: 1.3s; }
+  .ambient .rise .d2 { animation-delay: 2.4s; }
+  .cornerPulse { animation: stnGlowPulse 3.4s ease-in-out infinite; }
+  @keyframes stnTwinkle { 0%,100% { opacity: .25; } 50% { opacity: 1; } }
+  @keyframes stnStep { 0%,100% { transform: rotate(16deg); } 50% { transform: rotate(-16deg); } }
+  @keyframes stnRise { 0% { transform: translateY(0); opacity: 0; } 25% { opacity: .8; } 100% { transform: translateY(-46px); opacity: 0; } }
+  @keyframes stnGlowPulse { 0%,100% { opacity: .55; } 50% { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .ambient *, .cornerPulse { animation: none !important; } }
   .window h1 { font-size: 22px; margin: 0 0 2px; letter-spacing: 3px; text-shadow: 0 0 8px var(--neon); }
   .sub { color: var(--amber); font-size: 12px; margin-bottom: 14px; letter-spacing: 1px; }
   .tabs { display: flex; gap: 8px; margin-bottom: 14px; }
@@ -152,6 +167,79 @@
   #pauseMenu.show { display: flex; }
   #volBar { width: 170px; height: 12px; border: 1px solid var(--neon); position: relative; background: #07212c; }
   #volFill { height: 100%; width: 70%; background: var(--neon); box-shadow: 0 0 8px var(--neon); }
+
+  /* ===== title screen redesign ===== */
+  #intro { background: #00060c; overflow: hidden; }
+  #intro::before {
+    content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+    background:
+      radial-gradient(ellipse 120% 70% at 50% 118%, rgba(255,204,68,0.20) 0%, rgba(155,107,255,0.10) 36%, transparent 64%),
+      radial-gradient(ellipse 90% 60% at 22% 8%, rgba(54,224,255,0.14) 0%, transparent 60%),
+      radial-gradient(ellipse 90% 60% at 80% 4%, rgba(155,107,255,0.13) 0%, transparent 60%),
+      radial-gradient(ellipse at center, #03121d 0%, #00060c 78%);
+  }
+  #intro::after {
+    content: ""; position: absolute; left: -25%; right: -25%; bottom: -10%; height: 70%; z-index: 0;
+    pointer-events: none; opacity: 0.55; filter: blur(26px);
+    background:
+      conic-gradient(from 210deg at 30% 100%, transparent 0deg, rgba(54,224,255,0.22) 40deg, transparent 90deg),
+      conic-gradient(from 150deg at 72% 100%, transparent 0deg, rgba(85,255,153,0.18) 46deg, transparent 96deg),
+      conic-gradient(from 180deg at 50% 100%, transparent 0deg, rgba(155,107,255,0.20) 50deg, transparent 100deg);
+    animation: introAurora 18s ease-in-out infinite alternate;
+  }
+  @keyframes introAurora { 0% { transform: translateX(-3%) scaleY(1); opacity: 0.42; } 50% { transform: translateX(3%) scaleY(1.12); opacity: 0.62; } 100% { transform: translateX(-2%) scaleY(0.96); opacity: 0.5; } }
+  #introStars { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+  #introStars i { position: absolute; inset: -50% -50% -50% -50%; display: block; background-repeat: repeat; }
+  #introStars .s1 {
+    background-image: radial-gradient(1.4px 1.4px at 20% 30%, #cfeefd 50%, transparent), radial-gradient(1.2px 1.2px at 70% 60%, #bfe9ff 50%, transparent), radial-gradient(1.6px 1.6px at 45% 80%, #ffffff 50%, transparent), radial-gradient(1.1px 1.1px at 85% 18%, #9fd8e4 50%, transparent);
+    background-size: 340px 340px; animation: introDrift 90s linear infinite;
+  }
+  #introStars .s2 {
+    background-image: radial-gradient(1px 1px at 12% 50%, #8fd0e0 50%, transparent), radial-gradient(1px 1px at 55% 22%, #b9a8ff 50%, transparent), radial-gradient(1.3px 1.3px at 88% 72%, #d8f3ff 50%, transparent);
+    background-size: 220px 220px; opacity: 0.7; animation: introDrift 140s linear infinite reverse, introTwinkle 5s ease-in-out infinite;
+  }
+  @keyframes introDrift { from { transform: translate3d(0,0,0); } to { transform: translate3d(-340px,-180px,0); } }
+  @keyframes introTwinkle { 0%,100% { opacity: 0.45; } 50% { opacity: 0.85; } }
+  #intro .window {
+    position: relative; z-index: 1; text-align: center; width: min(720px, 92vw);
+    border: 1px solid rgba(54,224,255,0.28);
+    background: linear-gradient(180deg, rgba(2,16,28,0.55), rgba(0,8,16,0.78));
+    box-shadow: 0 0 60px rgba(54,224,255,0.16), inset 0 0 40px rgba(54,224,255,0.05);
+    backdrop-filter: blur(4px); padding: 30px 30px 26px;
+  }
+  #intro h1 {
+    position: relative; font-size: clamp(38px, 8vw, 72px); line-height: 1.02; margin: 0 0 6px;
+    letter-spacing: 0.16em; font-weight: bold;
+    background: linear-gradient(180deg, #eafaff 0%, #36e0ff 42%, #9b6bff 86%, #ffcc44 130%);
+    -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 14px rgba(54,224,255,0.55)) drop-shadow(0 0 30px rgba(155,107,255,0.35));
+  }
+  #intro h1::after {
+    content: "STELLAR\00a0DAWN"; position: absolute; inset: 0; z-index: 2;
+    background: linear-gradient(105deg, transparent 38%, rgba(255,255,255,0.9) 50%, transparent 62%);
+    -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent;
+    background-size: 280% 100%; animation: introShimmer 6s ease-in-out infinite;
+  }
+  @keyframes introShimmer { 0%, 62% { background-position: 200% 0; } 100% { background-position: -120% 0; } }
+  #intro .sub { color: var(--amber); font-size: clamp(12px, 1.7vw, 15px); letter-spacing: 0.34em; margin: 0 0 18px; text-shadow: 0 0 10px rgba(255,204,68,0.5); }
+  #intro p { font-size: 13px; line-height: 1.85; color: #8fd0e0; margin: 12px 0; }
+  #intro p b { color: #d8f3ff; }
+  #intro .ctrlrow { margin: 16px 0 6px; }
+  #intro kbd { display: inline-block; margin: 3px 1px; background: rgba(54,224,255,0.06); box-shadow: inset 0 0 6px rgba(54,224,255,0.18), 0 0 5px rgba(54,224,255,0.25); }
+  #intro .btn.big {
+    position: relative; overflow: hidden; width: min(320px, 80%); margin: 18px auto 4px; padding: 13px;
+    font-size: 16px; letter-spacing: 0.4em; color: #00131c; font-weight: bold; border: 1px solid #8fe9ff; border-radius: 5px;
+    background: linear-gradient(180deg, #7fefff, #36e0ff 60%, #16b9da); text-shadow: none; box-shadow: 0 0 22px rgba(54,224,255,0.55);
+    animation: introPulse 2.6s ease-in-out infinite; transition: transform .12s ease, box-shadow .2s ease;
+  }
+  #intro .btn.big::after { content: ""; position: absolute; top: 0; left: -60%; width: 40%; height: 100%; background: linear-gradient(105deg, transparent, rgba(255,255,255,0.65), transparent); transform: skewX(-20deg); animation: introBtnSheen 3.4s ease-in-out infinite; }
+  #intro .btn.big:hover { transform: translateY(-2px); box-shadow: 0 0 34px rgba(54,224,255,0.85); background: linear-gradient(180deg, #aef6ff, #4fe7ff 60%, #1fc8ea); }
+  @keyframes introPulse { 0%, 100% { box-shadow: 0 0 18px rgba(54,224,255,0.45); } 50% { box-shadow: 0 0 36px rgba(54,224,255,0.8); } }
+  @keyframes introBtnSheen { 0%, 70% { left: -60%; } 100% { left: 130%; } }
+  #intro .hint a { transition: color .15s, text-shadow .15s; }
+  #intro .hint a:hover { color: var(--neon) !important; text-shadow: 0 0 8px rgba(54,224,255,0.6); }
+  @media (max-width: 520px) { #intro .window { padding: 20px 16px; } #intro p { font-size: 12px; } }
+  @media (prefers-reduced-motion: reduce) { #intro::after, #introStars .s1, #introStars .s2, #intro h1::after, #intro .btn.big, #intro .btn.big::after { animation: none; } }
 </style>
 </head>
 <body>
@@ -194,10 +282,11 @@
   <div id="volPct" style="color:var(--amber);font-size:12px">70%</div>
   <button class="btn big" onclick="resumeGame()">RESUME [Esc]</button>
   <button class="btn big" style="margin-top:8px" onclick="toggleMusic()">TOGGLE MUSIC [P]</button>
+  <button class="btn big" id="crtBtn" style="margin-top:8px" onclick="toggleCRT()">CRT: off</button>
   <button class="btn big" style="margin-top:8px;border-color:var(--red);color:var(--red)" onclick="logOut()">LOG OUT</button>
 </div></div>
 
-<div id="intro"><div class="window">
+<div id="intro"><div id="introStars"><i class="s1"></i><i class="s2"></i></div><div class="window">
   <h1>STELLAR&nbsp;DAWN</h1>
   <div class="sub">// space trading + combat //</div>
   <p>
@@ -209,9 +298,9 @@
     Each run you begin <b>docked at a random home base</b> — buy cargo and pick your<br>
     ship in safety. Nothing can touch you until you <b>undock</b> into open space.
   </p>
-  <p style="color:#ffcc44">
+  <p class="ctrlrow" style="color:#ffcc44">
     <kbd>W</kbd> thrust &nbsp; <kbd>S</kbd> brake &nbsp; <kbd>A</kbd>/<kbd>D</kbd> turn &nbsp; <kbd>Shift</kbd> boost<br>
-    <kbd>Space</kbd> fire &nbsp; <kbd>F</kbd> missile &nbsp; <kbd>E</kbd> dock/undock &nbsp; <kbd>M</kbd> map &nbsp; <kbd>Enter</kbd> chat &nbsp; <kbd>Esc</kbd> menu &nbsp; <kbd>P</kbd> music<br>
+    <kbd>Space</kbd> fire &nbsp; <kbd>F</kbd> missile &nbsp; <kbd>X</kbd> mine &nbsp; <kbd>E</kbd> dock/undock &nbsp; <kbd>M</kbd> map &nbsp; <kbd>Enter</kbd> chat &nbsp; <kbd>Esc</kbd> menu &nbsp; <kbd>P</kbd> music<br>
     <span style="color:#7fc8d6">On a phone or tablet? Use the on-screen stick &amp; buttons.</span>
   </p>
   <button class="btn big" onclick="startGame()">LAUNCH</button>
@@ -278,56 +367,74 @@ const PLANETS = [
 const SHIPS = {
   Shuttle:     { cargo: 12, maxSpd: 270, accel: 230, turn: 3.3, hull: 100, fireRate: 0.34, dmg: 10, bSpd: 540, shield: 30,  price: 0     },
   Hauler:      { cargo: 40, maxSpd: 200, accel: 150, turn: 2.2, hull: 180, fireRate: 0.50, dmg: 10, bSpd: 500, shield: 60,  price: 3000  },
+  Wasp:        { cargo: 6,  maxSpd: 400, accel: 360, turn: 5.0, hull: 70,  fireRate: 0.18, dmg: 9,  bSpd: 640, shield: 25,  price: 4500  },
   Clipper:     { cargo: 20, maxSpd: 350, accel: 310, turn: 4.1, hull: 120, fireRate: 0.28, dmg: 12, bSpd: 600, shield: 45,  price: 5500  },
+  Prospector:  { cargo: 60, maxSpd: 175, accel: 135, turn: 2.0, hull: 240, fireRate: 0.52, dmg: 11, bSpd: 500, shield: 75,  price: 9000  },
   Frigate:     { cargo: 18, maxSpd: 285, accel: 245, turn: 3.0, hull: 270, fireRate: 0.22, dmg: 16, bSpd: 580, shield: 90,  price: 12000 },
   Dreadnought: { cargo: 55, maxSpd: 235, accel: 185, turn: 2.4, hull: 440, fireRate: 0.18, dmg: 22, bSpd: 560, shield: 150, price: 30000 },
 };
-const SHIP_ORDER = ["Shuttle", "Hauler", "Clipper", "Frigate", "Dreadnought"];
+const SHIP_ORDER = ["Shuttle", "Hauler", "Wasp", "Clipper", "Prospector", "Frigate", "Dreadnought"];
 
 // Vector art for each ship. Aggression escalates by tier: bigger hulls, more glowing
 // weapon muzzles, sharper angles, hotter colors. Optional per-ship base/accent/weapon
 // colors override the defaults passed to drawShip(). All drawn nose-toward +x.
 const SHIP_ART = {
-  // TIER 1 — civilian shuttle: small, rounded, harmless. Where everyone starts.
+  // TIER 1 — civilian shuttle: small, clean teardrop hull, single chin gun. Where everyone starts.
   Shuttle: {
     base: "#36e0ff", accent: "#cdfaff", weapon: "#ff8a3c", scale: 1.0, sprite: "shuttle", spriteSize: 34,
-    hull: [[15,0],[5,-4],[-2,-8],[-9,-7],[-11,-3],[-8,0],[-11,3],[-9,7],[-2,8],[5,4]],
-    lines: [[[12,0],[-7,0]],[[5,-4],[-1,-3]],[[5,4],[-1,3]]],
-    cockpit: [6,0,2.2], engines: [[-10,-3],[-10,3]], lights: [[-2,-8],[-2,8]],
-    weapons: [[15,0]],
+    hull: [[16,0],[10,-3],[3,-6],[-5,-7],[-10,-5],[-9,-2],[-12,-2],[-12,2],[-9,2],[-10,5],[-5,7],[3,6],[10,3]],
+    lines: [[[13,0],[-8,0]],[[6,-5],[-4,-4]],[[6,5],[-4,4]],[[3,-6],[3,6]]],
+    cockpit: [7,0,2.2], engines: [[-11,-2],[-11,2]], lights: [[-5,-7],[-5,7]],
+    weapons: [[16,0]],
   },
-  // TIER 2 — industrial freighter: boxy, heavy, three engines, twin defense ports.
+  // TIER 2 — industrial freighter: long container spine, flared cargo flanks, triple drives.
   Hauler: {
     base: "#2fd6c8", accent: "#d6fff7", weapon: "#ff8a3c", scale: 1.15, sprite: "hauler", spriteSize: 40,
-    hull: [[14,0],[10,-6],[7,-13],[-12,-13],[-15,-6],[-13,0],[-15,6],[-12,13],[7,13],[10,6]],
-    lines: [[[7,-13],[7,13]],[[-1,-13],[-1,13]],[[-8,-13],[-8,13]],[[-12,0],[7,0]]],
-    cockpit: [9,0,2.4], engines: [[-14,-6],[-14,0],[-14,6]], lights: [[7,-13],[7,13]],
-    weapons: [[10,-6],[10,6]],
+    hull: [[16,0],[12,-4],[9,-7],[9,-13],[-2,-14],[-13,-12],[-15,-6],[-12,-2],[-16,-2],[-16,2],[-12,2],[-15,6],[-13,12],[-2,14],[9,13],[9,7],[12,4]],
+    lines: [[[9,-13],[9,13]],[[1,-13],[1,13]],[[-7,-13],[-7,13]],[[-12,0],[9,0]],[[9,-7],[12,-4]],[[9,7],[12,4]]],
+    cockpit: [11,0,2.2], engines: [[-15,-6],[-14,0],[-15,6]], lights: [[9,-13],[9,13],[-2,-14],[-2,14]],
+    weapons: [[12,-4],[12,4]],
   },
-  // TIER 3 — sleek predator: long raked nose, swept-back blade wings, wing guns.
+  // NEW — TIER 2.5 — Wasp interceptor: razor dart, forward-swept stinger wings, twin nose fangs.
+  Wasp: {
+    base: "#55ff99", accent: "#eaffe8", weapon: "#ffcc44", scale: 0.95, sprite: null,
+    hull: [[20,0],[7,-2],[1,-4],[-3,-10],[-6,-3],[-11,-2],[-9,0],[-11,2],[-6,3],[-3,10],[1,4],[7,2]],
+    lines: [[[16,0],[-9,0]],[[7,-2],[-3,-2]],[[7,2],[-3,2]],[[-3,-10],[1,-4]],[[-3,10],[1,4]]],
+    cockpit: [6,0,1.7], engines: [[-10,-1.6],[-10,1.6]], lights: [[-3,-10],[-3,10]],
+    weapons: [[20,0],[1,-4],[1,4]],
+  },
+  // TIER 3 — sleek predator: long raked nose, swept blade wings, twin wing guns + nose lance.
   Clipper: {
     base: "#49c2ff", accent: "#eafaff", weapon: "#ff7a3c", scale: 1.1, sprite: "clipper", spriteSize: 48,
-    hull: [[24,0],[8,-3],[-2,-5],[-10,-13],[-7,-4],[-13,-2],[-12,0],[-13,2],[-7,4],[-10,13],[-2,5],[8,3]],
-    lines: [[[19,0],[-9,0]],[[8,-3],[-2,-3]],[[8,3],[-2,3]]],
-    cockpit: [10,0,2], engines: [[-11,-2],[-11,2]], lights: [[-10,-13],[-10,13]],
-    weapons: [[24,0],[-2,-5],[-2,5]],
+    hull: [[26,0],[14,-2],[5,-4],[-3,-5],[-8,-14],[-12,-13],[-9,-4],[-13,-3],[-12,0],[-13,3],[-9,4],[-12,13],[-8,14],[-3,5],[5,4],[14,2]],
+    lines: [[[21,0],[-10,0]],[[14,-2],[-3,-3]],[[14,2],[-3,3]],[[-3,-5],[-8,-14]],[[-3,5],[-8,14]]],
+    cockpit: [11,0,2], engines: [[-11,-3],[-11,3]], lights: [[-8,-14],[-8,14]],
+    weapons: [[26,0],[-3,-5],[-3,5]],
+  },
+  // NEW — TIER 3.5 — Prospector mining hauler: fat ore drum, drill mandibles, reinforced ribs.
+  Prospector: {
+    base: "#ffcc44", accent: "#fff0c0", weapon: "#ff8a3c", scale: 1.35, sprite: null,
+    hull: [[18,0],[15,-4],[8,-6],[8,-15],[-4,-16],[-14,-14],[-17,-7],[-13,-2],[-17,-2],[-17,2],[-13,2],[-17,7],[-14,14],[-4,16],[8,15],[8,6],[15,4]],
+    lines: [[[8,-15],[8,15]],[[-2,-15],[-2,15]],[[-9,-14],[-9,14]],[[-14,0],[8,0]],[[18,0],[8,-6]],[[18,0],[8,6]]],
+    cockpit: [11,0,2.6], engines: [[-16,-7],[-15,0],[-16,7]], lights: [[8,-15],[8,15],[-4,-16],[-4,16]],
+    weapons: [[18,0],[15,-4],[15,4]],
   },
   // TIER 4 — military gunship: twin cannon barrels, hard fins, glowing reactor core.
   Frigate: {
     base: "#6f86ff", accent: "#e2e8ff", weapon: "#ff5a32", scale: 1.3, core: [-2,0,5], sprite: "frigate", spriteSize: 48,
-    hull: [[22,-3],[12,-7],[6,-5],[-2,-12],[-13,-14],[-15,-7],[-10,0],[-15,7],[-13,14],[-2,12],[6,5],[12,7],[22,3],[15,2],[8,0],[15,-2]],
-    lines: [[[15,-2],[6,-3]],[[15,2],[6,3]],[[-2,0],[-12,0]],[[-2,-12],[-7,-5]],[[-2,12],[-7,5]]],
-    cockpit: [3,0,2.4], engines: [[-14,-7],[-14,7]], lights: [[-13,-14],[-13,14]],
-    weapons: [[22,-3],[22,3],[-2,-12],[-2,12]],
+    hull: [[24,-2],[24,2],[16,2],[12,7],[6,5],[-2,12],[-13,14],[-15,7],[-11,2],[-16,2],[-16,-2],[-11,-2],[-15,-7],[-13,-14],[-2,-12],[6,-5],[12,-7],[16,-2]],
+    lines: [[[24,-2],[6,-3]],[[24,2],[6,3]],[[-2,0],[-13,0]],[[-2,-12],[-7,-5]],[[-2,12],[-7,5]],[[6,-5],[6,5]]],
+    cockpit: [3,0,2.4], engines: [[-15,-7],[-14,0],[-15,7]], lights: [[-13,-14],[-13,14]],
+    weapons: [[24,-2],[24,2],[-2,-12],[-2,12]],
   },
   // TIER 5 — capital warship: spear nose, flanking cannons, huge swept wings, 5 guns,
   // a massive pulsing reactor core and an oversized hull that dwarfs everything else.
   Dreadnought: {
     base: "#9b6bff", accent: "#f0e6ff", weapon: "#ff3344", scale: 1.8, core: [2,0,11], sprite: "dreadnought", spriteSize: 62,
-    hull: [[28,0],[16,-3],[20,-6],[12,-8],[8,-7],[2,-9],[-4,-22],[-10,-10],[-16,-16],[-18,-8],[-13,0],[-18,8],[-16,16],[-10,10],[-4,22],[2,9],[8,7],[12,8],[20,6],[16,3]],
-    lines: [[[20,-6],[10,-4]],[[20,6],[10,4]],[[24,0],[-12,0]],[[2,-9],[-10,-10]],[[2,9],[-10,10]],[[8,-7],[8,7]],[[-6,-9],[-6,9]]],
-    cockpit: [12,0,3.2], engines: [[-16,-9],[-14,0],[-16,9]], lights: [[-4,-22],[-4,22],[-16,-16],[-16,16]],
-    weapons: [[28,0],[20,-6],[20,6],[-4,-22],[-4,22]],
+    hull: [[30,0],[22,-2],[16,-3],[20,-6],[12,-8],[8,-7],[2,-9],[-4,-22],[-10,-10],[-16,-16],[-18,-8],[-14,-2],[-19,-2],[-19,2],[-14,2],[-18,8],[-16,16],[-10,10],[-4,22],[2,9],[8,7],[12,8],[20,6],[16,3],[22,2]],
+    lines: [[[20,-6],[10,-4]],[[20,6],[10,4]],[[26,0],[-13,0]],[[2,-9],[-10,-10]],[[2,9],[-10,10]],[[8,-7],[8,7]],[[-6,-9],[-6,9]],[[16,-3],[22,-2]],[[16,3],[22,2]]],
+    cockpit: [12,0,3.2], engines: [[-16,-9],[-15,0],[-16,9]], lights: [[-4,-22],[-4,22],[-16,-16],[-16,16]],
+    weapons: [[30,0],[20,-6],[20,6],[-4,-22],[-4,22]],
   },
 };
 // Optional PNG ship sprites. If a file loads, drawShip() uses it; otherwise it falls back
@@ -787,6 +894,7 @@ function killTrader(t) {
 
 function playerDestroyed() {
   boom(player.x, player.y, "#36e0ff", 14);
+  sfxPlayerBoom();
   const lost = Math.round(player.credits * 0.25);
   player.credits -= lost;
   for (const c of COMMODITIES) player.cargo[c] = 0;
@@ -1128,7 +1236,8 @@ function render() {
   // player
   const [psx, psy] = toScreen(player.x, player.y);
   if (!(invuln > 0 && Math.floor(invuln * 10) % 2)) {
-    drawShip(psx, psy, player.a, SHIP_ART[player.shipType], "#36e0ff", "#cdfaff", z * playerScale(), keys["w"] || keys["arrowup"] || (touch.steer && touch.mag > 0.3));
+    const pp = PAINTS[player.paint] || PAINTS[0];
+    drawShip(psx, psy, player.a, SHIP_ART[player.shipType], pp.base, pp.accent, z * playerScale(), keys["w"] || keys["arrowup"] || (touch.steer && touch.mag > 0.3));
   }
 
   // floating combat text (rising, fading)
@@ -1252,6 +1361,10 @@ function planetFeat(pl) {
   const f = { gas, bands: [], craters: [], ring: gas && rnd() < 0.6, tilt: rnd() * 0.5 - 0.25, caps: !gas && rnd() < 0.7 };
   if (gas) { const n = 2 + Math.floor(rnd() * 3); for (let i = 0; i < n; i++) f.bands.push({ y: rnd() * 1.4 - 0.7, w: 0.1 + rnd() * 0.16, sh: rnd() < 0.5 ? 0.2 : -0.24 }); }
   else { const n = 3 + Math.floor(rnd() * 4); for (let i = 0; i < n; i++) { const a = rnd() * TAU, rr = rnd() * 0.68; f.craters.push({ x: Math.cos(a) * rr, y: Math.sin(a) * rr, s: 0.06 + rnd() * 0.12 }); } }
+  f.tint = shiftHue(pl.col, (rnd() * 2 - 1) * 26, 0.06 - rnd() * 0.16);   // per-planet palette shift
+  f.lights = [];
+  if (!gas && rnd() < 0.78) { const cl = 2 + Math.floor(rnd() * 3); for (let c = 0; c < cl; c++) { const ca = rnd() * TAU, cd = 0.3 + rnd() * 0.5, cn = 3 + Math.floor(rnd() * 5); for (let i = 0; i < cn; i++) { const a = ca + (rnd() * 2 - 1) * 0.5, d = cd + (rnd() * 2 - 1) * 0.18; f.lights.push({ x: Math.cos(a) * d, y: Math.sin(a) * d, s: 0.012 + rnd() * 0.02 }); } } }
+  f.moon = rnd() < 0.5 ? { dist: 1.5 + rnd() * 0.7, sp: (rnd() < 0.5 ? -1 : 1) * (0.18 + rnd() * 0.3), ph: rnd() * TAU, rr: 0.13 + rnd() * 0.1, ell: 0.5 + rnd() * 0.18, col: shade(pl.col, -0.1 + rnd() * 0.3) } : null;
   pl._feat = f; return f;
 }
 function drawPlanetRing(sx, sy, r, col, tilt, front) {
@@ -1267,13 +1380,14 @@ function drawPlanetRing(sx, sy, r, col, tilt, front) {
   ctx.restore();
 }
 function drawPlanet(sx, sy, r, pl) {
-  const f = planetFeat(pl), col = pl.col;
+  const f = planetFeat(pl), col = f.tint || pl.col;
   ctx.save();
   // atmosphere halo
   const halo = ctx.createRadialGradient(sx, sy, r * 0.82, sx, sy, r * 1.4);
   halo.addColorStop(0, hexA(col, 0.32)); halo.addColorStop(1, hexA(col, 0));
   ctx.fillStyle = halo; ctx.beginPath(); ctx.arc(sx, sy, r * 1.4, 0, TAU); ctx.fill();
   if (f.ring) drawPlanetRing(sx, sy, r, col, f.tilt, false);   // back of ring
+  if (f.moon && Math.sin(f.moon.ph + performance.now() * 0.001 * f.moon.sp) < 0) drawMoon(sx, sy, r, f.moon);  // moon behind
   // planet body, lit from upper-left
   const lx = sx - r * 0.34, ly = sy - r * 0.34;
   const g = ctx.createRadialGradient(lx, ly, r * 0.1, sx, sy, r * 1.06);
@@ -1295,11 +1409,25 @@ function drawPlanet(sx, sy, r, pl) {
   const spec = ctx.createRadialGradient(lx, ly, 0, lx, ly, r * 0.55);
   spec.addColorStop(0, "rgba(255,255,255,0.45)"); spec.addColorStop(1, "rgba(255,255,255,0)");
   ctx.fillStyle = spec; ctx.beginPath(); ctx.arc(lx, ly, r * 0.55, 0, TAU); ctx.fill();
+  // night-side city lights (terrestrial worlds) — warm dots biased to the dark hemisphere
+  if (f.lights.length) {
+    ctx.fillStyle = "rgba(255,214,140,0.9)"; ctx.shadowColor = "rgba(255,190,90,0.9)"; ctx.shadowBlur = Math.max(2, r * 0.04);
+    const tw = 0.7 + 0.3 * Math.sin(performance.now() * 0.002 + sx);
+    for (const L of f.lights) { const night = clamp((L.x + L.y) * 0.7 + 0.15, 0, 1); if (night < 0.12) continue; ctx.globalAlpha = night * tw; ctx.beginPath(); ctx.arc(sx + L.x * r, sy + L.y * r, Math.max(0.6, L.s * r), 0, TAU); ctx.fill(); }
+    ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+  }
+  ctx.restore();
+  // soft coloured atmospheric crescent on the lit limb (rim glow)
+  ctx.save(); ctx.beginPath(); ctx.arc(sx, sy, r * 1.16, 0, TAU); ctx.arc(sx, sy, r * 0.9, 0, TAU, true); ctx.clip();
+  const rim = ctx.createRadialGradient(lx, ly, r * 0.7, lx, ly, r * 1.55);
+  rim.addColorStop(0, hexA(shade(col, 0.5), 0)); rim.addColorStop(0.72, hexA(shade(col, 0.6), 0.42)); rim.addColorStop(1, hexA(shade(col, 0.7), 0));
+  ctx.fillStyle = rim; ctx.beginPath(); ctx.arc(sx, sy, r * 1.16, 0, TAU); ctx.fill();
   ctx.restore();
   // bright atmospheric rim on the lit limb
   ctx.lineWidth = Math.max(1, r * 0.035); ctx.strokeStyle = hexA(shade(col, 0.65), 0.6);
   ctx.beginPath(); ctx.arc(sx, sy, r * 0.99, Math.PI * 1.02, Math.PI * 1.78); ctx.stroke();
   if (f.ring) drawPlanetRing(sx, sy, r, col, f.tilt, true);    // front of ring
+  if (f.moon && Math.sin(f.moon.ph + performance.now() * 0.001 * f.moon.sp) >= 0) drawMoon(sx, sy, r, f.moon);  // moon in front
   // labels
   ctx.fillStyle = col; ctx.font = "13px 'Courier New', monospace"; ctx.textAlign = "center";
   ctx.shadowBlur = 6; ctx.shadowColor = col;
@@ -1459,11 +1587,22 @@ function drawHUD() {
   // active contract reminders
   ctx.font = "11px 'Courier New', monospace";
   for (const m of player.missions) {
+    if (m.type === "bounty") {
+      const done = (m.progress || 0) >= m.qty;
+      ctx.fillStyle = done ? "#55ff99" : "#ffcc44";
+      ctx.fillText("☠ " + (m.progress || 0) + "/" + m.qty + " pirates → " + m.dest + (done ? "  (claim!)" : ""), 20, hy);
+      hy += 15; continue;
+    }
     const ok = player.cargo[m.commodity] >= m.qty;
+    const eta = missionETA(m);
+    const timeStr = m.bonus ? (eta != null && eta > 0 ? "  ⏱" + fmtETA(eta) : "  (bonus lost)") : "";
     ctx.fillStyle = ok ? "#55ff99" : "#ffcc44";
-    ctx.fillText("▸ " + m.qty + " " + m.commodity + " → " + m.dest + "  (" + player.cargo[m.commodity] + "/" + m.qty + ")", 20, hy);
+    ctx.fillText("▸ " + m.qty + " " + m.commodity + " → " + m.dest + "  (" + player.cargo[m.commodity] + "/" + m.qty + ")" + timeStr, 20, hy);
     hy += 15;
   }
+  // subtle one-line objective nudge — the next sensible step
+  ctx.font = "11px 'Courier New', monospace"; ctx.fillStyle = "rgba(159,216,228,0.55)"; ctx.shadowBlur = 0;
+  ctx.fillText(objectiveText(), 20, hy + 6);
   ctx.restore();
 }
 
@@ -1631,6 +1770,8 @@ function stationSceneSVG(pl) {
     <radialGradient id="nebA" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="${hexA(col, 0.5)}"/><stop offset="100%" stop-color="${hexA(col, 0)}"/></radialGradient>
     <radialGradient id="nebB" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="rgba(150,90,255,0.4)"/><stop offset="100%" stop-color="rgba(150,90,255,0)"/></radialGradient>
     <filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="18"/></filter>
+    <radialGradient id="vignette" cx="50%" cy="48%" r="72%"><stop offset="0%" stop-color="#000" stop-opacity="0"/><stop offset="74%" stop-color="#000" stop-opacity="0"/><stop offset="100%" stop-color="#000" stop-opacity="0.72"/></radialGradient>
+    <linearGradient id="frameG" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${hexA(col, 0.55)}"/><stop offset="50%" stop-color="${hexA(col, 0.12)}"/><stop offset="100%" stop-color="${hexA(col, 0.55)}"/></linearGradient>
   </defs>
 
   <rect width="1280" height="720" fill="url(#groundG)"/>
@@ -1693,6 +1834,7 @@ function stationSceneSVG(pl) {
     <rect x="0" y="428.5" width="1280" height="2" fill="${th.hot}" opacity="0.8"/>
   </g>
   ${biomeSVG(th)}
+  ${ambientLifeSVG(th, col)}
 
   <!-- coloured glow pools grounding each zone -->
   <g opacity="0.22" filter="url(#soft)">
@@ -1806,6 +1948,16 @@ function stationSceneSVG(pl) {
     <text class="zlabel" x="906" y="262" fill="${col}" font-family="'Courier New',monospace" font-size="30" letter-spacing="2" filter="url(#stnglow)">SHIPYARD</text>
     <text x="908" y="690" fill="#7fa6b2" font-family="'Courier New',monospace" font-size="15" letter-spacing="1">&#9656; buy &amp; switch ships</text>
   </g>
+
+  <!-- refined frame + vignette (drawn last, never intercepts clicks) -->
+  <g pointer-events="none">
+    <rect width="1280" height="720" fill="url(#vignette)"/>
+    <rect x="9" y="9" width="1262" height="702" rx="10" fill="none" stroke="url(#frameG)" stroke-width="2"/>
+    <g stroke="${hexA(col, 0.85)}" stroke-width="2.5" fill="none" class="cornerPulse">
+      <path d="M22,52 L22,22 L52,22"/><path d="M1258,52 L1258,22 L1228,22"/>
+      <path d="M22,668 L22,698 L52,698"/><path d="M1258,668 L1258,698 L1228,698"/>
+    </g>
+  </g>
 </svg>`;
 }
 
@@ -1836,6 +1988,7 @@ function enterStation() {
     `<span class="badge">${pl.name.toUpperCase()} &nbsp;·&nbsp; ${pl.desc.toUpperCase()} &nbsp;·&nbsp; <span style="color:#55ff99">SAFE</span></span>` +
     `<span class="badge">CR ${player.credits.toLocaleString()} &nbsp; CARGO ${used}/${cap} &nbsp; JOBS ${player.missions.length} &nbsp; SHIP ${player.shipType.toUpperCase()}</span>`;
   document.getElementById("station").classList.add("show");
+  sfxDock();
 }
 function closeShop() { document.getElementById("panel").style.display = "none"; }
 
@@ -1879,7 +2032,7 @@ function marketNewsHTML() {
   }).join("<br>");
 }
 
-// ---------- delivery contracts ----------
+// ---------- contracts (delivery + bounty hunt) ----------
 function genContracts(pl) {
   const list = [];
   for (let i = 0; i < 3; i++) {
@@ -1887,7 +2040,14 @@ function genContracts(pl) {
     let d; do { d = PLANETS[Math.floor(Math.random() * PLANETS.length)]; } while (d === pl);
     const qty = 6 + Math.floor(Math.random() * 16);
     const reward = Math.round(qty * priceOf(d, c) * (1.6 + Math.random() * 1.1));
-    list.push({ commodity: c, qty, dest: d.name, reward });
+    const job = { type: "delivery", commodity: c, qty, dest: d.name, reward };
+    if (Math.random() < 0.45) { job.limit = Math.round(rand(120, 300)); job.bonus = Math.round(reward * rand(0.4, 0.7)); }  // time bonus
+    list.push(job);
+  }
+  if (Math.random() < 0.5) {                 // sometimes post a bounty-hunt job
+    const d = PLANETS[Math.floor(Math.random() * PLANETS.length)];
+    const qty = 3 + Math.floor(Math.random() * 4);
+    list.push({ type: "bounty", qty, dest: d.name, reward: Math.round(qty * rand(320, 520) * threatScale()), progress: 0 });
   }
   return list;
 }
@@ -1897,8 +2057,10 @@ function acceptContract(i) {
   if (player.missions.length >= 4) { toast("Contract log full (max 4)"); return; }
   dockedPlanet.contracts.splice(i, 1);
   k.from = dockedPlanet.name;
+  if (k.limit) k.expires = Date.now() + k.limit * 1000;          // start the time-bonus clock
   player.missions.push(k);
-  toast("Contract accepted: " + k.qty + " " + k.commodity + " → " + k.dest);
+  if (k.type === "bounty") toast("Bounty accepted: destroy " + k.qty + " pirates, claim at " + k.dest);
+  else toast("Contract accepted: " + k.qty + " " + k.commodity + " → " + k.dest);
   saveGame(); openPanel("contracts");
 }
 function completeMissions() {             // fulfil any contract whose destination is this station
@@ -1906,14 +2068,27 @@ function completeMissions() {             // fulfil any contract whose destinati
   const here = dockedPlanet.name;
   for (let i = player.missions.length - 1; i >= 0; i--) {
     const m = player.missions[i];
+    if (m.type === "bounty") {            // claim a filled bounty hunt
+      if (m.dest === here && (m.progress || 0) >= m.qty) {
+        player.credits += m.reward; player.missions.splice(i, 1);
+        lastDeliveries.push({ commodity: "pirate bounty", qty: m.qty, reward: m.reward });
+        addRep(12); player.stats.contracts++;
+        if ([5, 10, 25, 50].includes(player.stats.contracts)) toast("★ Milestone: " + player.stats.contracts + " contracts delivered!", 3000);
+        toast("Bounty claimed! +" + m.reward.toLocaleString() + " cr", 3200);
+        beep(660, 0.08, 0.09, "square"); setTimeout(() => beep(950, 0.12, 0.09, "square"), 90);
+      }
+      continue;
+    }
     if (m.dest === here && player.cargo[m.commodity] >= m.qty) {
       player.cargo[m.commodity] -= m.qty;
-      player.credits += m.reward;
+      let reward = m.reward, bonusPaid = 0;
+      if (m.bonus && m.expires && Date.now() <= m.expires) { bonusPaid = m.bonus; reward += m.bonus; }  // on-time bonus
+      player.credits += reward;
       player.missions.splice(i, 1);
-      lastDeliveries.push({ commodity: m.commodity, qty: m.qty, reward: m.reward });
+      lastDeliveries.push({ commodity: m.commodity, qty: m.qty, reward });
       addRep(10); player.stats.contracts++;
       if ([5, 10, 25, 50].includes(player.stats.contracts)) toast("★ Milestone: " + player.stats.contracts + " contracts delivered!", 3000);
-      toast("Contract complete! +" + m.reward.toLocaleString() + " cr", 3200);
+      toast("Contract complete! +" + reward.toLocaleString() + " cr" + (bonusPaid ? " (incl. +" + bonusPaid.toLocaleString() + " time bonus)" : ""), 3200);
       beep(660, 0.08, 0.09, "square"); setTimeout(() => beep(950, 0.12, 0.09, "square"), 90);
     }
   }
@@ -2089,7 +2264,8 @@ function changeVolume(d) { setMasterVolume(masterVolume + d); refreshVolUI(); be
 function showPause(on) {
   paused = on;
   const m = document.getElementById("pauseMenu"); if (m) m.classList.toggle("show", on);
-  if (on) { for (const k in keys) keys[k] = false; refreshVolUI(); }
+  if (on) { for (const k in keys) keys[k] = false; refreshVolUI();
+    const b = document.getElementById("crtBtn"); if (b) b.textContent = "CRT: " + (crtOn ? "on" : "off"); }
 }
 function resumeGame() { showPause(false); }
 function logOut() {
@@ -2196,9 +2372,10 @@ function spawnLoot(x, y, big) {
     loots.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 16, kind: c, amount: 1 + Math.floor(Math.random() * 3) }); }
 }
 function collectLoot(L) {
-  if (L.kind === "credits") { player.credits += L.amount; addFloat(L.x, L.y, "+" + L.amount + " cr", "#ffd24a"); beep(900, 0.04, 0.05, "square"); }
+  if (L.kind === "credits") { player.credits += L.amount; addFloat(L.x, L.y, "+" + L.amount + " cr", "#ffd24a"); }
   else if (cargoUsed(player) < effCargo()) { player.cargo[L.kind] += L.amount; addFloat(L.x, L.y, "+" + L.amount + " " + L.kind, "#8fe6ff"); }
   else { player.credits += 12 * L.amount; addFloat(L.x, L.y, "hold full +" + (12 * L.amount) + " cr", "#ffd24a"); }
+  sfxPickup();
   checkWin();
 }
 
@@ -2290,6 +2467,7 @@ function updateExtras(dt) {
 
 function openPanel(tab) {
   const pl = dockedPlanet;
+  sfxUi();
   document.getElementById("panel").style.display = "flex";
   const body = document.getElementById("panelBody");
   const used = cargoUsed(player), cap = effCargo();
@@ -2343,19 +2521,34 @@ function openPanel(tab) {
     html += `<div style="color:var(--amber);font-size:12px;letter-spacing:1px;margin-bottom:6px">JOBS AVAILABLE HERE</div>`;
     if (!pl.contracts || !pl.contracts.length) html += `<div class="hint">No jobs posted right now.</div>`;
     (pl.contracts || []).forEach((k, i) => {
+      const isB = k.type === "bounty";
+      const title = isB ? `☠ BOUNTY: ${k.qty} pirates &nbsp;→&nbsp; ${k.dest}` : `${k.qty} ${k.commodity} &nbsp;→&nbsp; ${k.dest}`;
+      const note = isB ? "destroy pirates, then claim at dest"
+        : k.bonus ? `paid on delivery · <span style="color:#ffcc44">+${k.bonus.toLocaleString()} if within ${fmtETA(k.limit)}</span>`
+        : "paid on delivery";
       html += `<div class="shipcard">
-        <div><div class="nm">${k.qty} ${k.commodity} &nbsp;→&nbsp; ${k.dest}</div>
-        <div class="stats">paid on delivery</div></div>
+        <div><div class="nm">${title}</div>
+        <div class="stats">${note}</div></div>
         <div style="text-align:right"><div class="price">${k.reward.toLocaleString()} cr</div>
         <button class="btn" ${player.missions.length >= 4 ? 'disabled' : ''} onclick="acceptContract(${i})">ACCEPT</button></div></div>`;
     });
     html += `<div style="color:var(--amber);font-size:12px;letter-spacing:1px;margin:14px 0 6px">YOUR CONTRACTS (${player.missions.length}/4)</div>`;
     if (!player.missions.length) html += `<div class="hint">None active — accept one above.</div>`;
     player.missions.forEach(m => {
+      if (m.type === "bounty") {
+        const done = (m.progress || 0) >= m.qty, here = m.dest === pl.name;
+        html += `<div class="shipcard ${done && here ? 'owned' : ''}">
+          <div><div class="nm">☠ ${m.qty} pirates &nbsp;→&nbsp; ${m.dest}</div>
+          <div class="stats">kills: ${m.progress || 0}/${m.qty}${done ? (here ? ' · <span style="color:#55ff99">claim here!</span>' : ' · <span style="color:#55ff99">ready — fly to ' + m.dest + '</span>') : ''}</div></div>
+          <div style="text-align:right"><div class="price">${m.reward.toLocaleString()} cr</div></div></div>`;
+        return;
+      }
       const have = player.cargo[m.commodity], here = m.dest === pl.name, ready = here && have >= m.qty;
+      const eta = missionETA(m);
+      const timeTag = m.bonus ? (eta != null && eta > 0 ? ` · <span style="color:#ffcc44">+${m.bonus.toLocaleString()} bonus · ${fmtETA(eta)} left</span>` : ` · <span style="color:#ff5a5a">time bonus expired</span>`) : '';
       html += `<div class="shipcard ${ready ? 'owned' : ''}">
         <div><div class="nm">${m.qty} ${m.commodity} &nbsp;→&nbsp; ${m.dest}</div>
-        <div class="stats">hold: ${have}/${m.qty} ${m.commodity}${here ? ' · <span style="color:#55ff99">deliver here!</span>' : ''}</div></div>
+        <div class="stats">hold: ${have}/${m.qty} ${m.commodity}${here ? ' · <span style="color:#55ff99">deliver here!</span>' : ''}${timeTag}</div></div>
         <div style="text-align:right"><div class="price">${m.reward.toLocaleString()} cr</div></div></div>`;
     });
   } else if (tab === "upgrades") {
@@ -2394,6 +2587,15 @@ function openPanel(tab) {
     html += `</div>`;
     html += `<div class="hint" style="margin-top:10px">${player.won ? '<span style="color:#55ff99">★ Trade Baron — you’ve won; keep flying for the high score.</span>' : 'Reach 250,000 net worth to win the game.'}</div>`;
   } else {
+    html += `<div style="color:var(--amber);font-size:12px;letter-spacing:1px;margin-bottom:6px">PAINT · LIVERY</div>`;
+    html += `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">`;
+    PAINTS.forEach((pt, i) => {
+      const on = player.paint === i;
+      html += `<button title="${pt.name}" onclick="setPaint(${i})" style="cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:0;padding:0">
+        <span style="width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,${pt.base} 60%,${pt.accent} 60%);border:2px solid ${on ? '#fff' : hexA(pt.base, 0.4)};box-shadow:${on ? '0 0 10px ' + hexA(pt.base, 0.9) : 'none'}"></span>
+        <span style="font-size:10px;letter-spacing:0.5px;color:${on ? '#fff' : '#9fd8e4'}">${pt.name}</span></button>`;
+    });
+    html += `</div>`;
     for (const name of SHIP_ORDER) {
       const s = SHIPS[name], owned = !!player.owned[name], current = player.shipType === name;
       html += `<div class="shipcard ${owned?'owned':''}">
@@ -2475,8 +2677,10 @@ function undock() {
   // nudge away so you don't instantly re-dock, with a few seconds of shields up
   player.vx += Math.cos(player.a) * 50; player.vy += Math.sin(player.a) * 50;
   invuln = Math.max(invuln, 2.5);
+  sfxUndock();
   saveGame();
   toast("Undocked — shields up briefly. Watch for pirates.", 2600);
+  startTutorial();   // first-run only: queue the paced beginner tips
 }
 
 //======================================================================
