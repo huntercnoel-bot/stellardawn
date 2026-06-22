@@ -355,17 +355,32 @@ const PIRATE_ART = {
 
 // ---- game state ----
 let player, bullets, enemies, traders, particles, stars, camZoom, mapZoom;
-let loots, asteroids, beacons, floaters;
+let loots, asteroids, beacons, floaters, mines, nebula = [], shockwaves = [];
 let toastTimer = 0, running = false, lastT = 0;
 let dockedPlanet = null, invuln = 0, spawnTimer = 4, traderTimer = 6, shake = 0;
 let policeTimer = 4, eventTimer = 30, sandboxMode = false;
 let musicOn = false, musicNodes = null, lastDeliveries = [];
-let missiles = [], missileCd = 0, lowHullCd = 0, marketEvents = [];
+let tutorialQueue = [], tutorialT = 0;                          // first-run onboarding tip queue
+let missiles = [], missileCd = 0, lowHullCd = 0, marketEvents = [], mineCd = 0;
 let touchEnabled = false, paused = false, warlordTimer = 0;
+let crtOn = (() => { try { return localStorage.getItem("stellarCRT") === "1"; } catch (e) { return false; } })();
+const PARTICLE_CAP = 420, FLOATER_CAP = 60;                     // hard caps so effects can't snowball
+let raidTimer = 0, raid = null;                                 // SECTOR RAID event (separate from warlordTimer)
 let killStreak = 0, mostWanted = false, wantedBounty = 0, dockLock = 0, wantedNetCd = 0;
 let wantedBoard = {};          // id -> { name, bounty, t }  most-wanted players across the network
 let netId = "p_" + Math.random().toString(16).slice(2, 8);
 const touch = { steer: false, dx: 0, dy: 0, mag: 0, fire: false, boost: false };
+// Player ship liveries (index into player.paint) — recolors the PLAYER ship only.
+const PAINTS = [
+  { name: "Aurora",  base: "#36e0ff", accent: "#cdfaff" },
+  { name: "Crimson", base: "#ff4d5e", accent: "#ffd2d6" },
+  { name: "Solar",   base: "#ffb02e", accent: "#fff0c9" },
+  { name: "Verdant", base: "#3ddc84", accent: "#d6ffe8" },
+  { name: "Void",    base: "#b06bff", accent: "#ecd9ff" },
+  { name: "Mono",    base: "#e8f4ff", accent: "#ffffff" },
+];
+// Per-commodity tint for loot crates (default cyan for anything unlisted).
+const LOOT_TINT = { Ore: "#caa46a", Water: "#5ad1ff", Fuel: "#ffae4a", Electronics: "#8fe6ff", Medicine: "#ff7aa8", Spice: "#c98bff" };
 
 function freshStats() {
   return { kills: 0, eliteKills: 0, warlords: 0, contracts: 0, asteroids: 0, rescues: 0, deaths: 0, distance: 0, bestNet: 0 };
@@ -375,7 +390,7 @@ function makePlayer() {
   const s = SHIPS.Shuttle;
   return {
     x: PLANETS[0].x, y: PLANETS[0].y - 200, vx: 0, vy: 0, a: -Math.PI / 2,
-    shipType: "Shuttle", owned: { Shuttle: true },
+    shipType: "Shuttle", owned: { Shuttle: true }, paint: 0,
     hull: s.hull, maxHull: s.hull, fireCd: 0,
     shield: s.shield, shieldCd: 0,
     credits: 500,
@@ -414,12 +429,16 @@ function emitTrail(p) {
 function initWorld() {
   player = makePlayer();
   bullets = []; enemies = []; traders = []; particles = []; missiles = [];
-  loots = []; asteroids = []; beacons = []; floaters = [];
+  loots = []; asteroids = []; beacons = []; floaters = []; mines = []; shockwaves = [];
   policeTimer = 4; eventTimer = 30; spawnTimer = 4; traderTimer = 6;
-  missileCd = 0; lowHullCd = 0; marketEvents = []; warlordTimer = rand(75, 135);
+  missileCd = 0; lowHullCd = 0; marketEvents = []; warlordTimer = rand(75, 135); mineCd = 0;
   killStreak = 0; mostWanted = false; wantedBounty = 0; dockLock = 0;
+  raidTimer = rand(60, 120); raid = null;
   stars = [];
   for (let i = 0; i < 320; i++) stars.push({ x: rand(0, WORLD.w), y: rand(0, WORLD.h), z: rand(0.3, 1), s: rand(0.5, 1.6) });
+  nebula = [];
+  const NEB_COLS = ["#36e0ff", "#ff4488", "#ffcc44", "#9b6bff", "#55ff99", "#3ca5ff"];
+  for (let i = 0; i < 5; i++) nebula.push({ x: rand(0, WORLD.w), y: rand(0, WORLD.h), r: rand(620, 1100), z: rand(0.08, 0.22), col: NEB_COLS[i % NEB_COLS.length], a: rand(0.05, 0.11) });
   camZoom = 1; mapZoom = 0;
   for (let i = 0; i < 5; i++) spawnPirate();
   for (let i = 0; i < 4; i++) spawnTrader();
@@ -440,12 +459,18 @@ function spawnPirate() {
   const roll = Math.random();
   const elite = roll < 0.15 + Math.min(0.18, (ts - 1) * 0.13);
   const tier = elite ? 2.4 : (roll < 0.4 ? 1.6 : 1);
-  enemies.push({
-    x, y, vx: 0, vy: 0, a: rand(0, TAU), faction: "pirate", elite,
+  // Plain pirates sometimes specialise: fast suicidal "raider" or tanky strafing "marauder".
+  let kind = null;
+  if (!elite && tier === 1) { const k = Math.random(); if (k < 0.26) kind = "raider"; else if (k < 0.46) kind = "marauder"; }
+  const e = {
+    x, y, vx: 0, vy: 0, a: rand(0, TAU), faction: "pirate", elite, kind,
     hull: 40 * tier * ts, maxHull: 40 * tier * ts, fireCd: rand(0.5, 1.5),
     maxSpd: elite ? 280 : 250, accel: 200, turn: elite ? 3.1 : 2.8, dmg: 8 * tier * ts, bSpd: elite ? 540 : 480,
     wander: rand(0, TAU), wanderT: 0, bounty: Math.round(rand(140, 380) * tier * ts), tier,
-  });
+  };
+  if (kind === "raider") { e.hull = e.maxHull = 26 * ts; e.maxSpd = 365; e.accel = 330; e.turn = 3.5; e.dmg = 7 * ts; e.bSpd = 560; e.bounty = Math.round(rand(190, 340) * ts); }
+  else if (kind === "marauder") { e.hull = e.maxHull = 95 * ts; e.maxSpd = 240; e.accel = 205; e.turn = 2.7; e.dmg = 9 * ts; e.bSpd = 500; e.bounty = Math.round(rand(380, 640) * ts); e.strafeDir = Math.random() < 0.5 ? 1 : -1; e.burst = 0; }
+  enemies.push(e);
 }
 
 // Neutral civilian traders that fly planet-to-planet. They ignore you completely —
@@ -473,6 +498,7 @@ addEventListener("keydown", e => {
   keys[e.key.toLowerCase()] = true;
   if (e.key.toLowerCase() === "e") { if (dockedPlanet) undock(); else tryDock(); }
   if (e.key.toLowerCase() === "f") fireMissile();
+  if (e.key.toLowerCase() === "x") dropMine();
   if (e.key.toLowerCase() === "m") mapZoom = mapZoom ? 0 : 1;
   if (e.key.toLowerCase() === "p") toggleMusic();
   if (e.key === "Escape" && running && !dockedPlanet) { showPause(!paused); }
@@ -490,6 +516,7 @@ function toast(msg, ms = 2200) {
 function update(dt) {
   if (dockedPlanet) return; // paused while trading
   const p = player, def = shipDef(p);
+  tickTutorial(dt);         // advance first-run beginner tips
 
   // thrust intent — keyboard W, or the on-screen stick pushed past its deadzone
   const thrustIntent = keys["w"] || keys["arrowup"] || (touch.steer && touch.mag > 0.3);
@@ -555,12 +582,12 @@ function update(dt) {
   // enemies
   spawnTimer -= dt;
   if (spawnTimer <= 0 && enemies.length < 6) { spawnPirate(); spawnTimer = rand(6, 12); }
-  for (const e of enemies) updateEnemy(e, dt);
+  for (const e of enemies) { if (farIdle(e, dt)) continue; updateEnemy(e, dt); }
 
   // neutral traders passing through (only fight back if you shoot them)
   traderTimer -= dt;
   if (traderTimer <= 0 && traders.length < 5) { spawnTrader(); traderTimer = rand(8, 16); }
-  for (const t of traders) updateTrader(t, dt);
+  for (const t of traders) { if (farIdle(t, dt)) continue; updateTrader(t, dt); }
 
   // bullets
   for (const b of bullets) { b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt; }
@@ -591,11 +618,12 @@ function update(dt) {
         }
       }
     } else if (invuln <= 0 && !inSafeZone(p.x, p.y) && dist(b.x, b.y, p.x, p.y) < 14 * playerScale()) {
-      b.life = 0; let dmg = b.dmg; player.shieldCd = 1.6;
+      b.life = 0; let dmg = b.dmg; const hadShield = player.shield > 0; player.shieldCd = 1.6;
       if (player.shield > 0) { const s = Math.min(player.shield, dmg); player.shield -= s; dmg -= s; }   // shields soak first
       if (dmg > 0) p.hull -= dmg;
-      burst(b.x, b.y, player.shield > 0 ? "#36e0ff" : "#ff4455", 6);
-      shake = Math.max(shake, 4); beep(player.shield > 0 ? 320 : 180, 0.06, 0.12, "square");
+      burst(b.x, b.y, hadShield ? "#36e0ff" : "#ff4455", 6);
+      if (hadShield) spawnShieldRipple();
+      shake = Math.max(shake, 4); if (dmg > 0) sfxHullHit(); else sfxShield();
       if (p.hull <= 0) playerDestroyed();
     }
   }
@@ -603,14 +631,21 @@ function update(dt) {
   enemies = enemies.filter(e => e.hull > 0);
   traders = traders.filter(t => t.hull > 0);
   updateMissiles(dt);            // homing missiles steer, hit, and splash
+  updateMines(dt);               // proximity mines arm + detonate
+  updateRaid(dt);                // sector raid events
   updateExtras(dt);              // loot, asteroids, beacons, police, shields, wanted decay
 
   // particles
   for (const pt of particles) { pt.x += pt.vx * dt; pt.y += pt.vy * dt; pt.life -= dt; }
   particles = particles.filter(pt => pt.life > 0);
+  if (particles.length > PARTICLE_CAP) particles.splice(0, particles.length - PARTICLE_CAP);
+  // shockwave rings (expand + fade)
+  for (const sw of shockwaves) { sw.life -= dt; sw.r += sw.spd * dt; }
+  shockwaves = shockwaves.filter(sw => sw.life > 0);
   // floating combat text (rises, fades)
   for (const ft of floaters) { ft.y -= 34 * dt; ft.life -= dt; }
   floaters = floaters.filter(ft => ft.life > 0);
+  if (floaters.length > FLOATER_CAP) floaters.splice(0, floaters.length - FLOATER_CAP);
 
   // dock prompt feedback
   const near = nearestDockable();
@@ -628,9 +663,14 @@ function updateEnemy(e, dt) {
   const p = player;
   const d = dist(e.x, e.y, p.x, p.y);
   const aggro = d < 950 && invuln <= 0;
+  const toP = Math.atan2(p.y - e.y, p.x - e.x);
   let targetA;
   if (aggro) {
-    targetA = Math.atan2(p.y - e.y, p.x - e.x);
+    targetA = toP;
+    if (e.kind === "marauder") {                          // orbit at mid-range instead of bee-lining
+      if (d < 360) e.strafeDir = e.strafeDir || 1;
+      targetA = toP + e.strafeDir * (Math.PI / 2) * clamp(d / 520, 0.35, 1);
+    }
   } else {
     e.wanderT -= dt;
     if (e.wanderT <= 0) { e.wander = rand(0, TAU); e.wanderT = rand(1.5, 4); }
@@ -639,8 +679,9 @@ function updateEnemy(e, dt) {
   const da = angDiff(e.a, targetA);
   e.a += clamp(da, -e.turn * dt, e.turn * dt);
 
-  // thrust toward facing (hold distance when close)
-  const wantThrust = aggro ? d > 280 : true;
+  // thrust toward facing (raiders charge, marauders hold a strafing gap)
+  let wantThrust = aggro ? d > 280 : true;
+  if (aggro) { if (e.kind === "raider") wantThrust = true; else if (e.kind === "marauder") wantThrust = d > 300; }
   if (wantThrust) { e.vx += Math.cos(e.a) * e.accel * dt; e.vy += Math.sin(e.a) * e.accel * dt; }
   const sp = Math.hypot(e.vx, e.vy);
   const cap = aggro ? e.maxSpd : e.maxSpd * 0.5;
@@ -649,13 +690,28 @@ function updateEnemy(e, dt) {
   e.x = clamp(e.x + e.vx * dt, 0, WORLD.w);
   e.y = clamp(e.y + e.vy * dt, 0, WORLD.h);
 
-  // fire when aimed + in range (warlords spit a faster 3-shot spread)
+  // raiders ram: a point-blank body-slam hurts and detonates the raider
+  if (e.kind === "raider" && aggro && d < 26 * playerScale() && invuln <= 0 && !inSafeZone(p.x, p.y)) {
+    let dmg = e.dmg * 1.6; player.shieldCd = 1.6;
+    if (player.shield > 0) { const s = Math.min(player.shield, dmg); player.shield -= s; dmg -= s; }
+    if (dmg > 0) player.hull -= dmg;
+    shake = Math.max(shake, 6); boom(e.x, e.y, "#ff8a3c", 6); sfxHit();
+    e.hull = 0; killEnemy(e);
+    if (player.hull <= 0) playerDestroyed();
+    return;
+  }
+
+  // fire when aimed + in range. warlords: 3-shot spread. marauder: short burst. raider/marauder aim straight at player.
   e.fireCd -= dt;
-  if (aggro && d < (e.warlord ? 900 : 760) && Math.abs(da) < 0.25 && e.fireCd <= 0 && !inSafeZone(p.x, p.y)) {
+  const aimAt = (e.kind === "raider" || e.kind === "marauder") ? Math.abs(angDiff(e.a, toP)) : Math.abs(da);
+  const fireRange = e.warlord ? 900 : (e.kind === "marauder" ? 620 : e.kind === "raider" ? 420 : 760);
+  if (aggro && d < fireRange && aimAt < 0.3 && e.fireCd <= 0 && !inSafeZone(p.x, p.y)) {
     const angs = e.warlord ? [-0.16, 0, 0.16] : [0];
-    e.fireCd = e.warlord ? rand(0.5, 0.8) : rand(0.7, 1.2);
+    if (e.kind === "marauder") { e.burst = (e.burst > 0) ? e.burst - 1 : 3; e.fireCd = e.burst > 0 ? 0.12 : rand(1.0, 1.5); }
+    else if (e.kind === "raider") { e.fireCd = rand(0.5, 0.9); }
+    else { e.fireCd = e.warlord ? rand(0.5, 0.8) : rand(0.7, 1.2); }
     for (const off of angs) {
-      const a = e.a + off;
+      const a = (e.kind === "raider" || e.kind === "marauder") ? toP + off : e.a + off;
       bullets.push({ x: e.x + Math.cos(a) * 14, y: e.y + Math.sin(a) * 14,
         vx: Math.cos(a) * e.bSpd, vy: Math.sin(a) * e.bSpd, life: 1.5, dmg: e.dmg, friendly: false });
     }
@@ -680,7 +736,9 @@ function killEnemy(e) {
       addRep(4); toast((e.elite ? "Elite pirate" : "Pirate") + " destroyed  +" + e.bounty + " cr");
     }
     if ([10, 25, 50, 100, 250].includes(st.kills)) toast("★ Milestone: " + st.kills + " pirates destroyed!", 3000);
+    tickBounty();                                    // advance any active bounty-hunt contracts
   }
+  if (e.raider && raid) raid.kills++;                // SECTOR RAID progress
   checkWin(); saveGame();
 }
 
@@ -827,6 +885,18 @@ function render() {
   const camX = player.x + (Math.random() - 0.5) * shake, camY = player.y + (Math.random() - 0.5) * shake;
   const toScreen = (x, y) => [(x - camX) * z + W / 2, (y - camY) * z + H / 2];
 
+  // parallax nebula/dust — large soft blobs scrolling slower than the stars (additive, cheap)
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  for (const nb of nebula) {
+    const scx = (nb.x - camX * nb.z) * z + W / 2, scy = (nb.y - camY * nb.z) * z + H / 2, rr = nb.r * z;
+    if (scx < -rr || scx > W + rr || scy < -rr || scy > H + rr) continue;
+    const g = ctx.createRadialGradient(scx, scy, 0, scx, scy, rr);
+    g.addColorStop(0, hexA(nb.col, nb.a)); g.addColorStop(1, hexA(nb.col, 0));
+    ctx.fillStyle = g; ctx.fillRect(scx - rr, scy - rr, rr * 2, rr * 2);
+  }
+  ctx.restore();
+
   // starfield (parallax)
   ctx.save();
   for (const s of stars) {
@@ -859,16 +929,32 @@ function render() {
     drawPlanet(sx, sy, pl.r * z, pl);
   }
 
-  // asteroids (shoot them to mine ore)
+  // asteroids (shoot them to mine ore) — shaded 3D rock w/ rim light + ore veins
   for (const A of asteroids) {
     const [sx, sy] = toScreen(A.x, A.y);
     if (sx < -60 || sx > W + 60 || sy < -60 || sy > H + 60) continue;
     ctx.save(); ctx.translate(sx, sy); ctx.rotate(A.a); ctx.scale(z, z);
-    ctx.beginPath(); ctx.moveTo(A.verts[0][0], A.verts[0][1]);
-    for (let i = 1; i < A.verts.length; i++) ctx.lineTo(A.verts[i][0], A.verts[i][1]);
+    const V = A.verts, n = V.length, big = A.r >= 28;
+    ctx.beginPath(); ctx.moveTo(V[0][0], V[0][1]);
+    for (let i = 1; i < n; i++) ctx.lineTo(V[i][0], V[i][1]);
     ctx.closePath();
     ctx.fillStyle = "#2a2620"; ctx.fill();
+    const dx = Math.cos(0.9 - A.a) * A.r * 0.5, dy = Math.sin(0.9 - A.a) * A.r * 0.5;
+    ctx.save(); ctx.clip();
+    ctx.fillStyle = "#181510";
+    ctx.beginPath(); ctx.arc(dx, dy, A.r * 0.95, 0, TAU); ctx.fill();
+    const flecks = big ? 5 : 3;
+    for (let i = 0; i < flecks; i++) {
+      const v = V[(i * 3) % n], px = v[0] * 0.6, py = v[1] * 0.6, rr = A.r * 0.1;
+      if (i % 2) { ctx.fillStyle = hexA("#ffb347", 0.85); ctx.shadowColor = "#ffb347"; ctx.shadowBlur = 6 * z; }
+      else { ctx.fillStyle = "#15120d"; ctx.shadowBlur = 0; }
+      ctx.beginPath(); ctx.arc(px, py, rr, 0, TAU); ctx.fill();
+    }
+    ctx.restore();
+    ctx.shadowBlur = 0;
     ctx.strokeStyle = "#6b6053"; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.strokeStyle = hexA("#cfc4ad", 0.55); ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(-dx * 0.6, -dy * 0.6, A.r * 0.85, 2.0 - A.a, 4.3 - A.a); ctx.stroke();
     ctx.restore();
   }
 
@@ -908,28 +994,73 @@ function render() {
   }
   ctx.shadowBlur = 0; ctx.globalAlpha = 1;
 
-  // loot pickups (amber = credits, blue = cargo); blink as they're about to expire
+  // shockwave rings (expanding stroked circles from booms + shield hits)
+  for (const sw of shockwaves) {
+    const [sx, sy] = toScreen(sw.x, sw.y);
+    const f = clamp(sw.life / sw.max, 0, 1);
+    ctx.globalAlpha = f * 0.7;
+    ctx.strokeStyle = sw.col; ctx.lineWidth = (sw.w || 2.5) * f * camZoom;
+    ctx.shadowBlur = 12; ctx.shadowColor = sw.col;
+    ctx.beginPath(); ctx.arc(sx, sy, sw.r * camZoom, 0, TAU); ctx.stroke();
+  }
+  ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+
+  // loot pickups — spinning amber coin (credits) or glowing tinted crate (cargo)
+  const lt = performance.now();
   for (const L of loots) {
     const [sx, sy] = toScreen(L.x, L.y);
-    if (L.life < 4 && Math.floor(performance.now() / 150) % 2) continue;
-    ctx.save();
-    const col = L.kind === "credits" ? "#ffcc44" : "#8fe6ff";
-    ctx.fillStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 8;
-    ctx.beginPath(); ctx.arc(sx, sy, 3.2 * z, 0, TAU); ctx.fill();
+    if (L.life < 4 && Math.floor(lt / 150) % 2) continue;
+    ctx.save(); ctx.translate(sx, sy);
+    const pulse = 0.75 + 0.25 * Math.sin(lt / 200 + L.x);
+    if (L.kind === "credits") {
+      const w = Math.abs(Math.cos(lt / 260 + L.y)) * 0.85 + 0.15, R = 4.2 * z;
+      ctx.fillStyle = "#ffcc44"; ctx.shadowColor = "#ffcc44"; ctx.shadowBlur = 10 * pulse;
+      ctx.beginPath(); ctx.moveTo(0, -R); ctx.lineTo(R * w, 0); ctx.lineTo(0, R); ctx.lineTo(-R * w, 0); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = hexA("#fff3c0", 0.9); ctx.shadowBlur = 0;
+      ctx.beginPath(); ctx.arc(-R * w * 0.3, -R * 0.3, R * 0.18, 0, TAU); ctx.fill();
+    } else {
+      const col = LOOT_TINT[L.kind] || "#8fe6ff", s = 3.6 * z;
+      ctx.shadowColor = col; ctx.shadowBlur = 9 * pulse;
+      ctx.fillStyle = hexA(col, 0.28); ctx.fillRect(-s, -s, s * 2, s * 2);
+      ctx.strokeStyle = col; ctx.lineWidth = 1.3; ctx.strokeRect(-s, -s, s * 2, s * 2);
+      ctx.beginPath(); ctx.moveTo(-s, -s); ctx.lineTo(s, s); ctx.moveTo(s, -s); ctx.lineTo(-s, s); ctx.stroke();
+    }
     ctx.restore();
   }
   ctx.shadowBlur = 0;
 
-  // bullets
-  ctx.lineWidth = 2;
+  // proximity mines — blinking danger discs; armed ones blink faster & glow hotter
+  for (const m of mines) {
+    const [sx, sy] = toScreen(m.x, m.y);
+    if (sx < -40 || sx > W + 40 || sy < -40 || sy > H + 40) continue;
+    const armed = m.arm <= 0, on = Math.floor(performance.now() / (armed ? 90 : 260)) % 2 === 0;
+    const col = armed ? "#ff4455" : "#ffcc44";
+    ctx.save();
+    ctx.globalAlpha = (armed ? 0.5 : 0.28) * (on ? 1 : 0.5);
+    ctx.strokeStyle = col; ctx.shadowBlur = 14; ctx.shadowColor = col; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(sx, sy, (armed ? 12 : 9) * z, 0, TAU); ctx.stroke();
+    ctx.globalAlpha = on ? 1 : 0.35; ctx.fillStyle = col; ctx.shadowBlur = 10;
+    ctx.beginPath(); ctx.arc(sx, sy, 4 * z, 0, TAU); ctx.fill();
+    ctx.restore();
+  }
+  ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+
+  // bullets — friendly shots are brighter energy bolts with a white-hot core
+  ctx.lineCap = "round";
   for (const b of bullets) {
     const [sx, sy] = toScreen(b.x, b.y);
-    ctx.strokeStyle = b.friendly ? "#aef3ff" : "#ff8899";
-    ctx.shadowBlur = 8; ctx.shadowColor = b.friendly ? "#36e0ff" : "#ff4455";
-    ctx.beginPath(); ctx.moveTo(sx, sy);
-    ctx.lineTo(sx - b.vx * 0.012, sy - b.vy * 0.012); ctx.stroke();
+    const tx = sx - b.vx * 0.012, ty = sy - b.vy * 0.012;
+    if (b.friendly) {
+      ctx.lineWidth = 4.5; ctx.strokeStyle = "#36e0ff"; ctx.shadowBlur = 14; ctx.shadowColor = "#36e0ff";
+      ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(tx, ty); ctx.stroke();
+      ctx.lineWidth = 1.6; ctx.strokeStyle = "#ffffff"; ctx.shadowBlur = 6;
+      ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(tx, ty); ctx.stroke();
+    } else {
+      ctx.lineWidth = 2; ctx.strokeStyle = "#ff8899"; ctx.shadowBlur = 8; ctx.shadowColor = "#ff4455";
+      ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(tx, ty); ctx.stroke();
+    }
   }
-  ctx.shadowBlur = 0;
+  ctx.lineCap = "butt"; ctx.shadowBlur = 0;
 
   // homing missiles (little glowing darts)
   for (const m of missiles) {
@@ -970,7 +1101,20 @@ function render() {
     let art = PIRATE_ART, col = "#ff4455", scale = e.elite ? 1.3 : 1;
     if (e.warlord) { col = "#ff2e63"; art = Object.assign({}, PIRATE_ART, { base: col, accent: "#ffd24a", weapon: "#ffd24a", sprite: null }); scale = 1.9; }
     else if (e.faction === "police") { col = "#5aa0ff"; art = Object.assign({}, PIRATE_ART, { base: col, accent: "#cfe6ff", weapon: "#cfe6ff", sprite: null }); }
+    else if (e.kind === "raider") { col = "#ff7a1c"; scale = 0.92; art = Object.assign({}, PIRATE_ART, { base: col, accent: "#ffd24a", weapon: "#ffd24a", sprite: null }); }
+    else if (e.kind === "marauder") { col = "#b06bff"; scale = 1.18; art = Object.assign({}, PIRATE_ART, { base: col, accent: "#e6d4ff", weapon: "#e6d4ff", sprite: null }); }
     drawShip(sx, sy, e.a, art, col, "#ffd24a", z * scale, Math.hypot(e.vx, e.vy) > 45);
+    if (e.kind === "raider") {
+      ctx.save(); ctx.translate(sx, sy); ctx.rotate(e.a);
+      ctx.strokeStyle = "#ff7a1c"; ctx.shadowBlur = 8; ctx.shadowColor = "#ff7a1c"; ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.moveTo(20 * z, -5 * z); ctx.lineTo(27 * z, 0); ctx.lineTo(20 * z, 5 * z); ctx.stroke();
+      ctx.restore(); ctx.shadowBlur = 0;
+    } else if (e.kind === "marauder") {
+      ctx.save(); ctx.globalAlpha = 0.4 + 0.25 * Math.sin(performance.now() / 200);
+      ctx.strokeStyle = "#b06bff"; ctx.shadowBlur = 10; ctx.shadowColor = "#b06bff"; ctx.lineWidth = 1.6;
+      ctx.setLineDash([4, 5]); ctx.beginPath(); ctx.arc(sx, sy, 19 * z, 0, TAU); ctx.stroke();
+      ctx.restore(); ctx.shadowBlur = 0;
+    }
     if (e.warlord) {
       ctx.fillStyle = "#ff2e63"; ctx.shadowBlur = 6; ctx.shadowColor = "#ff2e63";
       ctx.font = "11px 'Courier New', monospace"; ctx.textAlign = "center";
@@ -1003,7 +1147,9 @@ function render() {
   drawHUD();
   drawBossBar();
   drawWantedBanner();
+  drawRaidBanner();
   drawMinimap();
+  drawCRT();
 }
 
 // Top-center MOST WANTED banner — the highest bounty across all players (and you).
@@ -1343,6 +1489,11 @@ function drawMinimap() {
       ctx.fillStyle = e.warlord ? "#ff2e63" : e.faction === "police" ? "#5aa0ff" : "#ff4455";
       const s = e.warlord ? 3 : 2; ctx.fillRect(mx + e.x * sx - s / 2, my + e.y * sy - s / 2, s, s);
     }
+  }
+  // SECTOR RAID: raiders flash on the scope for the raid's duration (even if not most-wanted)
+  if (raid) {
+    const blink = Math.floor(performance.now() / 250) % 2 === 0;
+    for (const e of raid.members) { if (e.hull <= 0) continue; ctx.fillStyle = blink ? "#ff2e63" : "#ffd24a"; ctx.fillRect(mx + e.x * sx - 2, my + e.y * sy - 2, 4, 4); }
   }
   if (big) {
     ctx.fillStyle = "#ffcc44";
@@ -1777,7 +1928,7 @@ function saveGame() {
       credits: player.credits, shipType: player.shipType, owned: player.owned,
       cargo: player.cargo, hull: player.hull, shield: player.shield, missions: player.missions,
       upgrades: player.upgrades, wanted: player.wanted, rep: player.rep, won: player.won,
-      stats: player.stats,
+      stats: player.stats, paint: player.paint,
     }));
   } catch (e) {}
 }
@@ -1794,6 +1945,7 @@ function loadSaveInto(p) {
     if (typeof s.wanted === "number") p.wanted = s.wanted;
     if (typeof s.rep === "number") p.rep = s.rep;
     if (s.won) p.won = s.won;
+    if (typeof s.paint === "number" && PAINTS[s.paint]) p.paint = s.paint;
     if (s.stats) p.stats = Object.assign(freshStats(), s.stats);
     const def = SHIPS[p.shipType]; p.maxHull = def.hull; p.hull = Math.min(s.hull || def.hull, def.hull);
     p.shield = effMaxShield();
@@ -1809,6 +1961,7 @@ function boom(x, y, col, power) {
     const a = rand(0, TAU), sp = rand(90, 280);
     particles.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.28, max: 0.28, col: "#ffffff", r: rand(2, 4), glow: true });
   }
+  shockwaves.push({ x, y, r: power * 1.5, spd: 320 + power * 40, life: 0.45, max: 0.45, col, w: 2 + power * 0.25 });
   sfxBoom();
   const d = dist(x, y, player.x, player.y);
   shake = Math.min(16, Math.max(shake, power * 140 / Math.max(140, d)));
@@ -2518,6 +2671,225 @@ function setupNetChat() {
 }
 setupChat();
 setupNetChat();
+
+//======================================================================
+//  INTEGRATED ADD-ONS (agent batch) — new self-contained functions
+//======================================================================
+// ---- extra SFX (all route through masterOut) ----
+function sfxShield() { try { audioCtx(); const out = masterOut(), t0 = actx.currentTime, dur = 0.12; const o = actx.createOscillator(); o.type = "sawtooth"; o.frequency.setValueAtTime(1500 * rand(0.95, 1.06), t0); o.frequency.exponentialRampToValueAtTime(760, t0 + dur); const bp = actx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 2200; bp.Q.value = 5; const g = actx.createGain(); g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.1, t0 + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur); o.connect(bp); bp.connect(g); g.connect(out); o.start(t0); o.stop(t0 + dur + 0.02); } catch (e) {} }
+function sfxHullHit() { try { audioCtx(); const out = masterOut(), t0 = actx.currentTime, dur = 0.14; const o = actx.createOscillator(); o.type = "square"; o.frequency.setValueAtTime(220 * rand(0.92, 1.08), t0); o.frequency.exponentialRampToValueAtTime(90, t0 + dur); const lp = actx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 700; const g = actx.createGain(); g.gain.setValueAtTime(0.14, t0); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur); o.connect(lp); lp.connect(g); g.connect(out); o.start(t0); o.stop(t0 + dur + 0.02); } catch (e) {} }
+function sfxPlayerBoom() { try { audioCtx(); const out = masterOut(), t0 = actx.currentTime, dur = 0.7, sr = actx.sampleRate, n = (sr * dur) | 0; const buf = actx.createBuffer(1, n, sr), d = buf.getChannelData(0); for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 1.6); const src = actx.createBufferSource(); src.buffer = buf; const f = actx.createBiquadFilter(); f.type = "lowpass"; f.frequency.setValueAtTime(620, t0); f.frequency.exponentialRampToValueAtTime(140, t0 + dur); const g = actx.createGain(); g.gain.setValueAtTime(0.36, t0); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur); src.connect(f); f.connect(g); g.connect(out); src.start(t0); const o = actx.createOscillator(); o.type = "sine"; o.frequency.setValueAtTime(150, t0); o.frequency.exponentialRampToValueAtTime(42, t0 + dur); const og = actx.createGain(); og.gain.setValueAtTime(0.3, t0); og.gain.exponentialRampToValueAtTime(0.0001, t0 + dur); o.connect(og); og.connect(out); o.start(t0); o.stop(t0 + dur + 0.03); } catch (e) {} }
+function sfxDock() { try { audioCtx(); const out = masterOut(), t0 = actx.currentTime, dur = 0.5; const o = actx.createOscillator(); o.type = "triangle"; o.frequency.setValueAtTime(660, t0); o.frequency.exponentialRampToValueAtTime(220, t0 + dur); const g = actx.createGain(); g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.1, t0 + 0.03); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur); o.connect(g); g.connect(out); o.start(t0); o.stop(t0 + dur + 0.03); } catch (e) {} }
+function sfxUndock() { try { audioCtx(); const out = masterOut(), t0 = actx.currentTime, dur = 0.45; const o = actx.createOscillator(); o.type = "triangle"; o.frequency.setValueAtTime(220, t0); o.frequency.exponentialRampToValueAtTime(680, t0 + dur); const g = actx.createGain(); g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.1, t0 + 0.04); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur); o.connect(g); g.connect(out); o.start(t0); o.stop(t0 + dur + 0.03); } catch (e) {} }
+function sfxPickup() { try { audioCtx(); const out = masterOut(), t0 = actx.currentTime, dur = 0.1; const o = actx.createOscillator(); o.type = "sine"; o.frequency.setValueAtTime(660 * rand(0.97, 1.04), t0); o.frequency.exponentialRampToValueAtTime(1180, t0 + dur); const g = actx.createGain(); g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.07, t0 + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur); o.connect(g); g.connect(out); o.start(t0); o.stop(t0 + dur + 0.02); } catch (e) {} }
+function sfxUi() { try { audioCtx(); const out = masterOut(), t0 = actx.currentTime, dur = 0.05; const o = actx.createOscillator(); o.type = "square"; o.frequency.setValueAtTime(880, t0); o.frequency.exponentialRampToValueAtTime(1320, t0 + dur); const g = actx.createGain(); g.gain.setValueAtTime(0.045, t0); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur); o.connect(g); g.connect(out); o.start(t0); o.stop(t0 + dur + 0.02); } catch (e) {} }
+
+// ---- FX: shield ripple ----
+function spawnShieldRipple() { shockwaves.push({ x: player.x, y: player.y, r: 16 * playerScale(), spd: 260, life: 0.32, max: 0.32, col: "#36e0ff", w: 3 }); }
+
+// ---- planet art helpers ----
+function shiftHue(hex, deg, dl) {
+  const n = parseInt(hex.slice(1), 16);
+  let r = ((n >> 16) & 255) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+  let hh = 0; const l = (mx + mn) / 2, s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+  if (d) { if (mx === r) hh = ((g - b) / d) % 6; else if (mx === g) hh = (b - r) / d + 2; else hh = (r - g) / d + 4; }
+  hh = (hh * 60 + deg + 360) % 360;
+  const L = clamp(l + dl, 0, 1), C = (1 - Math.abs(2 * L - 1)) * s, X = C * (1 - Math.abs((hh / 60) % 2 - 1)), m = L - C / 2;
+  let R, G, B;
+  if (hh < 60) [R, G, B] = [C, X, 0]; else if (hh < 120) [R, G, B] = [X, C, 0]; else if (hh < 180) [R, G, B] = [0, C, X];
+  else if (hh < 240) [R, G, B] = [0, X, C]; else if (hh < 300) [R, G, B] = [X, 0, C]; else [R, G, B] = [C, 0, X];
+  return `rgb(${((R + m) * 255) | 0},${((G + m) * 255) | 0},${((B + m) * 255) | 0})`;
+}
+function drawMoon(sx, sy, r, m) {
+  const a = m.ph + performance.now() * 0.001 * m.sp;
+  const mx = sx + Math.cos(a) * r * m.dist, my = sy + Math.sin(a) * r * m.ell * m.dist, mr = r * m.rr;
+  const lx = mx - mr * 0.34, ly = my - mr * 0.34;
+  const g = ctx.createRadialGradient(lx, ly, mr * 0.1, mx, my, mr * 1.05);
+  g.addColorStop(0, shade(m.col, 0.45)); g.addColorStop(0.6, shade(m.col, -0.05)); g.addColorStop(1, shade(m.col, -0.6));
+  ctx.beginPath(); ctx.arc(mx, my, mr, 0, TAU); ctx.fillStyle = g; ctx.fill();
+}
+
+// ---- perf: off-screen AI throttle + CRT overlay ----
+function farIdle(o, dt) {
+  if (o.hostile) return false;
+  const p = player;
+  if (dist(o.x, o.y, p.x, p.y) < 1100) return false;
+  const half = Math.max(W, H) / (2 * camZoom) + 120;
+  if (Math.abs(o.x - p.x) < half && Math.abs(o.y - p.y) < half) return false;
+  o._idle = (o._idle || 0) - dt;
+  if (o._idle <= 0) { o._idle = 0.4; o.x += o.vx * 0.4; o.y += o.vy * 0.4; }
+  return true;
+}
+let _crtPat = null, _crtVig = null, _crtW = 0, _crtH = 0;
+function drawCRT() {
+  if (!crtOn) return;
+  if (_crtW !== W || _crtH !== H || !_crtPat) {
+    const off = document.createElement("canvas"); off.width = 1; off.height = 3;
+    const oc = off.getContext("2d"); oc.fillStyle = "rgba(0,0,0,0.18)"; oc.fillRect(0, 0, 1, 1);
+    _crtPat = ctx.createPattern(off, "repeat");
+    _crtVig = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.72);
+    _crtVig.addColorStop(0, "rgba(0,0,0,0)"); _crtVig.addColorStop(1, "rgba(0,0,0,0.35)");
+    _crtW = W; _crtH = H;
+  }
+  ctx.save(); ctx.fillStyle = _crtPat; ctx.fillRect(0, 0, W, H); ctx.fillStyle = _crtVig; ctx.fillRect(0, 0, W, H); ctx.restore();
+}
+function toggleCRT() {
+  crtOn = !crtOn;
+  try { localStorage.setItem("stellarCRT", crtOn ? "1" : "0"); } catch (e) {}
+  const b = document.getElementById("crtBtn"); if (b) b.textContent = "CRT: " + (crtOn ? "on" : "off");
+  beep(660, 0.04, 0.05, "square");
+}
+
+// ---- SECTOR RAID ----
+function startRaid() {
+  const n = 3 + Math.floor(rand(2, 4));
+  const members = [], base = rand(0, TAU);
+  for (let i = 0; i < n; i++) {
+    const ang = base + i / n * TAU + rand(-0.3, 0.3), r = rand(680, 980);
+    const e = makePirateAt(clamp(player.x + Math.cos(ang) * r, 80, WORLD.w - 80), clamp(player.y + Math.sin(ang) * r, 80, WORLD.h - 80));
+    e.raider = true; enemies.push(e); members.push(e);
+  }
+  raid = { members, kills: 0, need: n, life: 45 };
+  toast("⚠ PIRATE RAID — " + n + " raiders converging! Destroy them or flee.", 4000);
+  beep(140, 0.25, 0.12, "sawtooth"); setTimeout(() => beep(110, 0.3, 0.12, "sawtooth"), 200);
+}
+function updateRaid(dt) {
+  if (!raid) {
+    raidTimer -= dt;
+    if (raidTimer <= 0) { if (!inSafeZone(player.x, player.y)) { startRaid(); raidTimer = rand(60, 120); } else raidTimer = 6; }
+    return;
+  }
+  raid.members = raid.members.filter(e => e.hull > 0 && enemies.includes(e));
+  raid.life -= dt;
+  const cleared = raid.kills >= raid.need;
+  if (cleared || raid.members.length === 0 || raid.life <= 0) {
+    if (cleared || raid.life <= 0) {
+      const bonus = 600 + Math.round(raid.kills * 220);
+      player.credits += bonus;
+      addFloat(player.x, player.y, "RAID BONUS +" + bonus.toLocaleString() + " cr", "#55ff99");
+      toast((cleared ? "✦ RAID REPELLED!" : "✦ You survived the raid!") + "  +" + bonus.toLocaleString() + " cr", 4000);
+      beep(660, 0.08, 0.08, "square"); setTimeout(() => beep(990, 0.12, 0.08, "square"), 100);
+    }
+    raid = null; raidTimer = rand(60, 120);
+  }
+}
+function drawRaidBanner() {
+  if (!raid) return;
+  const left = Math.max(0, raid.need - raid.kills), secs = Math.ceil(Math.max(0, raid.life));
+  const txt = "⚔ PIRATE RAID  ·  " + left + " left  ·  " + secs + "s";
+  ctx.save(); ctx.font = "14px 'Courier New', monospace"; ctx.textAlign = "center";
+  const w = (ctx.measureText(txt).width || txt.length * 8) + 40, bx = W / 2, by = 92;
+  ctx.fillStyle = "rgba(26,2,8,0.82)"; ctx.fillRect(bx - w / 2, by - 17, w, 27);
+  ctx.strokeStyle = "#ff7a3c"; ctx.lineWidth = 1.5; ctx.strokeRect(bx - w / 2, by - 17, w, 27);
+  ctx.fillStyle = "#ffd24a"; ctx.shadowBlur = 8; ctx.shadowColor = "#ff7a3c"; ctx.fillText(txt, bx, by + 2);
+  ctx.restore();
+}
+
+// ---- deployable proximity MINES (drop with X) ----
+const MINE_ARM_T = 0.6, MINE_TRIG = 70, MINE_SPLASH = 95, MINE_DMG = 60, MINE_CAP = 6, MINE_CD = 0.8;
+function dropMine() {
+  if (!running || dockedPlanet || paused) return;
+  if (inSafeZone(player.x, player.y)) { toast("Can't deploy mines in a safe zone"); return; }
+  if (mineCd > 0) return;
+  if (mines.length >= MINE_CAP) { toast("Mine bay full (max " + MINE_CAP + ")"); return; }
+  mineCd = MINE_CD;
+  const off = 16 * playerScale();
+  mines.push({ x: player.x - Math.cos(player.a) * off, y: player.y - Math.sin(player.a) * off, arm: MINE_ARM_T, dmg: MINE_DMG * (1 + 0.25 * up("damage")), t: 0 });
+  beep(180, 0.08, 0.07, "square");
+}
+function detonateMine(m) {
+  boom(m.x, m.y, "#ff5a32", 6);
+  for (const e of enemies) { if (e.hull <= 0) continue; const d = dist(m.x, m.y, e.x, e.y); if (d < MINE_SPLASH) { e.hull -= m.dmg * (d < MINE_TRIG ? 1 : 0.5); if (e.hull <= 0) killEnemy(e); } }
+  for (const t of traders) { if (t.hull <= 0 || !t.hostile) continue; const d = dist(m.x, m.y, t.x, t.y); if (d < MINE_SPLASH) { t.hull -= m.dmg * (d < MINE_TRIG ? 1 : 0.5); if (t.hull <= 0) killTrader(t); } }
+  enemies = enemies.filter(e => e.hull > 0);
+  traders = traders.filter(t => t.hull > 0);
+}
+function updateMines(dt) {
+  if (mineCd > 0) mineCd -= dt;
+  for (const m of mines) {
+    m.t += dt;
+    if (m.arm > 0) { m.arm -= dt; continue; }
+    let trip = false;
+    for (const e of enemies) { if (e.hull > 0 && dist(m.x, m.y, e.x, e.y) < MINE_TRIG) { trip = true; break; } }
+    if (!trip) for (const t of traders) { if (t.hull > 0 && t.hostile && dist(m.x, m.y, t.x, t.y) < MINE_TRIG) { trip = true; break; } }
+    if (trip) { detonateMine(m); m.dead = true; }
+  }
+  mines = mines.filter(m => !m.dead);
+}
+
+// ---- onboarding: first-run tips + objective nudge ----
+function startTutorial() {
+  let seen = false; try { seen = !!localStorage.getItem("stellarSeen"); } catch (e) {}
+  if (seen) return;
+  try { localStorage.setItem("stellarSeen", "1"); } catch (e) {}
+  tutorialQueue = [
+    { t: 1.2, msg: "Hold W to thrust · A/D to turn · S to brake" },
+    { t: 5.5, msg: "Press M for the galaxy map" },
+    { t: 5.5, msg: "Dock at a planet with E to trade & take contracts" },
+    { t: 5.5, msg: "Space to fire · F missiles · X mines · watch your hull" },
+  ];
+  tutorialT = tutorialQueue[0].t;
+}
+function tickTutorial(dt) {
+  if (!tutorialQueue.length) return;
+  tutorialT -= dt;
+  if (tutorialT > 0) return;
+  toast(tutorialQueue.shift().msg, 3200);
+  tutorialT = tutorialQueue.length ? tutorialQueue[0].t : 0;
+}
+function objectiveText() {
+  const p = player;
+  if (p.hull / p.maxHull < 0.35) return "Hull low — dock (E) to repair";
+  const carried = p.missions.find(m => m.type !== "bounty" && p.cargo[m.commodity] > 0);
+  if (carried) return "Deliver " + carried.qty + " " + carried.commodity + " to " + carried.dest;
+  const bounty = p.missions.find(m => m.type === "bounty");
+  if (bounty) return "Bounty: " + (bounty.progress || 0) + "/" + bounty.qty + " pirates → " + bounty.dest;
+  if (p.missions.length) { const m = p.missions[0]; return "Buy " + m.qty + " " + m.commodity + " for " + m.dest; }
+  if (cargoUsed(p) >= effCargo() * 0.9) return "Hold full — sell cargo for profit";
+  if (cargoUsed(p) > 0) return "Tip: sell your cargo, or take a contract (E)";
+  return "Tip: dock (E) and take a delivery contract";
+}
+
+// ---- contracts: bounty progress + time-bonus helpers ----
+function fmtETA(secs) { secs = Math.max(0, Math.ceil(secs)); const m = Math.floor(secs / 60), s = secs % 60; return m + ":" + (s < 10 ? "0" : "") + s; }
+function missionETA(m) { return m.expires ? (m.expires - Date.now()) / 1000 : null; }
+function tickBounty() {
+  for (const m of player.missions) {
+    if (m.type !== "bounty" || (m.progress || 0) >= m.qty) continue;
+    m.progress = (m.progress || 0) + 1;
+    if (m.progress >= m.qty) toast("☠ Bounty filled (" + m.qty + "/" + m.qty + ") — collect at " + m.dest, 3500);
+    else toast("Bounty progress " + m.progress + "/" + m.qty + " → " + m.dest, 1800);
+  }
+}
+
+// ---- ship paint ----
+function setPaint(i) {
+  if (!PAINTS[i] || player.paint === i) return;
+  player.paint = i; toast("Livery: " + PAINTS[i].name); beep(640, 0.05, 0.05, "square"); saveGame(); openPanel("yard");
+}
+
+// ---- station ambient life (SVG SMIL/CSS, injected into #stationScene) ----
+function ambientLifeSVG(th, col) {
+  const walker = (x, y, s, dur, delay, tint) =>
+    `<g transform="translate(${x},${y}) scale(${s})" opacity="0.7" fill="${tint}"><animateTransform attributeName="transform" type="translate" additive="sum" values="0,0; 150,0" dur="${dur}s" begin="${delay}s" repeatCount="indefinite"/><circle cx="0" cy="-13" r="3"/><rect x="-2.4" y="-10" width="4.8" height="9" rx="2"/><rect class="leg lA" x="-2.2" y="-1" width="2" height="6"/><rect class="leg lB" x="0.6" y="-1" width="2" height="6"/></g>`;
+  const shuttle = (y, s, dur, delay, dir) =>
+    `<g transform="translate(${dir > 0 ? -120 : 1400},${y}) scale(${dir > 0 ? s : -s},${s})" filter="url(#stnglow)"><animateTransform attributeName="transform" type="translate" additive="sum" values="0,0; ${1520 * dir},0" dur="${dur}s" begin="${delay}s" repeatCount="indefinite"/><ellipse cx="0" cy="0" rx="26" ry="8" fill="${shade(col, -0.2)}" stroke="${shade(col, 0.5)}" stroke-width="1"/><rect x="-8" y="-9" width="20" height="6" rx="3" fill="${shade(col, 0.35)}"/><ellipse cx="-26" cy="0" rx="9" ry="3" fill="${hexA(th.hot, 0.8)}"><animate attributeName="rx" values="9;14;9" dur="0.7s" repeatCount="indefinite"/></ellipse><circle cx="24" cy="0" r="2" fill="#ff5a5a"><animate attributeName="opacity" values="1;0.1;1" dur="1.3s" repeatCount="indefinite"/></circle></g>`;
+  const beacon = (x, yTop, h, dur, c) =>
+    `<g><line x1="${x}" y1="${yTop}" x2="${x}" y2="${yTop + h}" stroke="#46566a" stroke-width="2"/><circle cx="${x}" cy="${yTop}" r="4" fill="${c}" filter="url(#stnglow)"><animate attributeName="opacity" values="1;0.15;1" dur="${dur}s" repeatCount="indefinite"/></circle></g>`;
+  let s = "";
+  s += `<g class="twinkle" fill="#dff0ff"><circle cx="120" cy="40" r="1.4"/><circle class="d1" cx="430" cy="34" r="1.2"/><circle class="d2" cx="620" cy="44" r="1.5"/><circle class="d1" cx="840" cy="36" r="1.2"/><circle class="d2" cx="980" cy="52" r="1.3"/><circle cx="1180" cy="38" r="1.4"/></g>`;
+  s += shuttle(120, 0.6, 26, 0, 1) + shuttle(150, 0.95, 19, 7, -1);
+  s += `<g>${beacon(60, 196, 26, 1.7, col)}${beacon(1220, 196, 26, 2.3, th.hot)}${beacon(640, 318, 18, 1.1, col)}</g>`;
+  s += `<g class="crowd">${walker(120, 700, 1.05, 16, 0, hexA(col, 0.85))}${walker(360, 706, 0.9, 21, 4, hexA(th.hot, 0.8))}${walker(800, 700, 1.1, 18, 9, hexA(col, 0.7))}${walker(1010, 706, 0.85, 24, 2, hexA(th.hot, 0.7))}</g>`;
+  if (th.biome === "lava") { let e = ""; for (let i = 0; i < 7; i++) { const x = 140 + i * 165, d = (2 + (i % 3) * 0.6).toFixed(1); e += `<circle cx="${x}" cy="700" r="2" fill="${hexA('#ffb060', 0.9)}"><animate attributeName="cy" values="700;640" dur="${d}s" begin="${(i * 0.4).toFixed(1)}s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.9;0" dur="${d}s" begin="${(i * 0.4).toFixed(1)}s" repeatCount="indefinite"/></circle>`; } s += `<g filter="url(#stnglow)">${e}</g>`; }
+  else if (th.biome === "ocean") { s += `<g class="rise" fill="${hexA(th.hot, 0.55)}"><circle cx="300" cy="700" r="3"/><circle class="d2" cx="640" cy="700" r="4"/><circle class="d1" cx="980" cy="700" r="3"/></g>`; }
+  else if (th.biome === "agri") { let f = ""; for (let i = 0; i < 9; i++) { const x = 120 + i * 130, y = 660 + (i % 3) * 14, d = (3 + (i % 4) * 0.7).toFixed(1); f += `<circle cx="${x}" cy="${y}" r="1.8" fill="#cfff8a"><animate attributeName="opacity" values="0;1;0" dur="${d}s" begin="${(i * 0.5).toFixed(1)}s" repeatCount="indefinite"/></circle>`; } s += `<g filter="url(#stnglow)">${f}</g>`; }
+  else if (th.biome === "industrial") { s += `<g class="rise" filter="url(#soft)" fill="${hexA('#aebccb', 0.35)}"><ellipse cx="70" cy="540" rx="20" ry="12"/><ellipse class="d1" cx="1168" cy="518" rx="22" ry="13"/></g>`; }
+  else if (th.biome === "medical") { s += `<g class="twinkle" fill="${hexA('#ffd0e6', 0.8)}"><circle cx="430" cy="660" r="2.4"/><circle class="d1" cx="640" cy="650" r="2.6"/><circle class="d2" cx="850" cy="662" r="2.4"/></g>`; }
+  else if (th.biome === "market") { let fl = ""; for (let i = 0; i < 6; i++) { const x = 200 + i * 170, d = (2.4 + (i % 3) * 0.5).toFixed(1); fl += `<circle cx="${x}" cy="288" r="2.6" fill="${th.chan}"><animate attributeName="opacity" values="0.3;1;0.3" dur="${d}s" begin="${(i * 0.3).toFixed(1)}s" repeatCount="indefinite"/></circle>`; } s += `<g filter="url(#stnglow)">${fl}</g>`; }
+  return `<g class="ambient" pointer-events="none">${s}</g>`;
+}
 
 requestAnimationFrame(loop);
 </script>
