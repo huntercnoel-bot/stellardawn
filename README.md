@@ -44,7 +44,11 @@ MSL / DOCK / MAP** buttons appear automatically.
 - Planets are **safe zones** — no combat in or out while you're inside the circle.
 - **Pirates** hunt you; **traders** are neutral unless you shoot them; shooting
   peaceful ships raises your **wanted level** and brings the police. Enemies get
-  tougher as your net worth grows, so late-game runs stay dangerous.
+  tougher as your net worth grows, so late-game runs stay dangerous. Hostiles
+  don't appear on the radar — keep your eyes on the void.
+- Once you've built up a real ship, a rare **Pirate Warlord** mini-boss may prowl
+  the sector: a huge, spread-firing hull with a top-of-screen health bar and a
+  fat bounty. Only one stalks the cluster at a time.
 - Mine **asteroids** for ore, answer **distress beacons** (reward… or ambush),
   and grow your **net worth** to rank up. Reach 250,000 to become a Trade Baron.
 - Progress saves automatically in your browser.
