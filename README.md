@@ -33,7 +33,13 @@ MSL / DOCK / MAP** buttons appear automatically.
 
 - Start docked at a random home base. Dock at a planet, click the **Trading Post**
   to buy/sell, the **Shipyard** to change ships, **Upgrades** to outfit your ship,
-  and **Contracts** to take delivery jobs.
+  and **Contracts** to take delivery jobs. Every station has **its own look** —
+  lava flats at Cinder, oceans at Aqua Veil, farms at Verdant, and more.
+- Rack up a **kill streak**: 3 kills makes you **MOST WANTED**. Your **bounty rises
+  with every kill** and is broadcast to **everyone** (a banner on all screens plus
+  a chat callout), hostiles light up your **radar**, and **bases lock you out for a
+  minute after each kill** — so you can't just duck into port. Docking (or dying)
+  clears your bounty.
 - Watch the **Galactic Market News** — random **shortages** (sell high) and
   **gluts** (buy cheap) pop up at stations and last a few visits.
 - An on-screen **waypoint arrow** points the way to each active contract, and a

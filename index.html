@@ -355,13 +355,16 @@ const PIRATE_ART = {
 
 // ---- game state ----
 let player, bullets, enemies, traders, particles, stars, camZoom, mapZoom;
-let loots, asteroids, beacons;
+let loots, asteroids, beacons, floaters;
 let toastTimer = 0, running = false, lastT = 0;
 let dockedPlanet = null, invuln = 0, spawnTimer = 4, traderTimer = 6, shake = 0;
 let policeTimer = 4, eventTimer = 30, sandboxMode = false;
 let musicOn = false, musicNodes = null, lastDeliveries = [];
 let missiles = [], missileCd = 0, lowHullCd = 0, marketEvents = [];
 let touchEnabled = false, paused = false, warlordTimer = 0;
+let killStreak = 0, mostWanted = false, wantedBounty = 0, dockLock = 0, wantedNetCd = 0;
+let wantedBoard = {};          // id -> { name, bounty, t }  most-wanted players across the network
+let netId = "p_" + Math.random().toString(16).slice(2, 8);
 const touch = { steer: false, dx: 0, dy: 0, mag: 0, fire: false, boost: false };
 
 function freshStats() {
@@ -411,9 +414,10 @@ function emitTrail(p) {
 function initWorld() {
   player = makePlayer();
   bullets = []; enemies = []; traders = []; particles = []; missiles = [];
-  loots = []; asteroids = []; beacons = [];
+  loots = []; asteroids = []; beacons = []; floaters = [];
   policeTimer = 4; eventTimer = 30; spawnTimer = 4; traderTimer = 6;
   missileCd = 0; lowHullCd = 0; marketEvents = []; warlordTimer = rand(75, 135);
+  killStreak = 0; mostWanted = false; wantedBounty = 0; dockLock = 0;
   stars = [];
   for (let i = 0; i < 320; i++) stars.push({ x: rand(0, WORLD.w), y: rand(0, WORLD.h), z: rand(0.3, 1), s: rand(0.5, 1.6) });
   camZoom = 1; mapZoom = 0;
@@ -533,11 +537,16 @@ function update(dt) {
         vx: Math.cos(a) * def.bSpd + p.vx, vy: Math.sin(a) * def.bSpd + p.vy,
         life: 1.3, dmg, friendly: true });
     }
-    beep(720, 0.05, 0.08, "square");
+    muzzleFlash(p.x + Math.cos(p.a) * noseOff, p.y + Math.sin(p.a) * noseOff, p.a);
+    p.vx -= Math.cos(p.a) * 6; p.vy -= Math.sin(p.a) * 6;   // a little recoil kick
+    shake = Math.max(shake, 1.6);
+    sfxShoot(dmg / 22);
   }
 
   if (invuln > 0) invuln -= dt;
   if (missileCd > 0) missileCd -= dt;
+  if (dockLock > 0) dockLock -= dt;
+  updateWanted(dt);
 
   // low-hull warning klaxon (only out in the open, where it matters)
   if (lowHullCd > 0) lowHullCd -= dt;
@@ -561,14 +570,14 @@ function update(dt) {
     if (b.friendly) {
       for (const e of enemies) {
         if (e.hull > 0 && dist(b.x, b.y, e.x, e.y) < 16) {
-          e.hull -= b.dmg; b.life = 0; burst(b.x, b.y, "#ffcc44", 5);
+          e.hull -= b.dmg; b.life = 0; burst(b.x, b.y, "#ffcc44", 5); sfxHit();
           if (e.hull <= 0) killEnemy(e);
           break;
         }
       }
       if (b.life > 0) for (const t of traders) {
         if (t.hull > 0 && dist(b.x, b.y, t.x, t.y) < 16) {
-          t.hull -= b.dmg; b.life = 0; burst(b.x, b.y, "#ffcc44", 5);
+          t.hull -= b.dmg; b.life = 0; burst(b.x, b.y, "#ffcc44", 5); sfxHit();
           if (!t.hostile) { t.hostile = true; addWanted(1); toast("You fired on a trader — they're fighting back!", 2600); }
           if (t.hull <= 0) killTrader(t);
           break;
@@ -599,10 +608,16 @@ function update(dt) {
   // particles
   for (const pt of particles) { pt.x += pt.vx * dt; pt.y += pt.vy * dt; pt.life -= dt; }
   particles = particles.filter(pt => pt.life > 0);
+  // floating combat text (rises, fades)
+  for (const ft of floaters) { ft.y -= 34 * dt; ft.life -= dt; }
+  floaters = floaters.filter(ft => ft.life > 0);
 
   // dock prompt feedback
   const near = nearestDockable();
-  if (near && toastTimer <= 0) toast("Press  E  to dock at " + near.name, 600);
+  if (near && toastTimer <= 0) {
+    if (dockLock > 0) toast("Combat lockout — can't dock for " + Math.ceil(dockLock) + "s", 600);
+    else toast("Press  E  to dock at " + near.name, 600);
+  }
 
   // camera zoom ease + screen-shake decay
   camZoom += (1 - camZoom) * dt * 4;
@@ -650,10 +665,12 @@ function updateEnemy(e, dt) {
 function killEnemy(e) {
   boom(e.x, e.y, e.faction === "police" ? "#9fd8ff" : "#ff7a3c", e.elite ? 9 : 6);
   spawnLoot(e.x, e.y, e.elite);
-  if (e.faction === "police") { addWanted(1); toast("You destroyed a police ship!"); }
+  if (e.faction === "police") { addWanted(1); toast("You destroyed a police ship!"); addFloat(e.x, e.y, "POLICE DOWN", "#9fd8ff"); }
   else {
     player.credits += e.bounty;
     const st = player.stats; st.kills++; if (e.elite) st.eliteKills++;
+    registerKill(e.bounty);                          // builds your most-wanted bounty + dock lockout
+    addFloat(e.x, e.y, "+" + e.bounty.toLocaleString() + " cr", e.warlord ? "#ff2e63" : "#ffd24a");
     if (e.warlord) {
       addRep(25); st.warlords = (st.warlords || 0) + 1;
       spawnLoot(e.x, e.y, true); spawnLoot(e.x, e.y, true);   // warlords drop a hoard
@@ -716,6 +733,7 @@ function playerDestroyed() {
   player.credits -= lost;
   for (const c of COMMODITIES) player.cargo[c] = 0;
   player.stats.deaths++;
+  dockLock = 0; layLow(false);          // death clears your bounty and the lockout
   const home = nearest(PLANETS);
   player.x = home.x; player.y = home.y - 200; player.vx = player.vy = 0;
   player.hull = player.maxHull; invuln = 3;
@@ -729,6 +747,13 @@ function burst(x, y, col, n) {
     particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: rand(0.3, 0.8), max: 0.8, col });
   }
 }
+// bright muzzle flash + forward sparks when you fire
+function muzzleFlash(x, y, a) {
+  particles.push({ x, y, vx: Math.cos(a) * 60, vy: Math.sin(a) * 60, life: 0.09, max: 0.09, r: 6.5, col: "#cdfaff", glow: true });
+  for (let i = 0; i < 3; i++) { const sp = rand(120, 260), aa = a + rand(-0.25, 0.25); particles.push({ x, y, vx: Math.cos(aa) * sp, vy: Math.sin(aa) * sp, life: rand(0.1, 0.2), max: 0.2, r: rand(1, 2.2), col: "#aef3ff", glow: true }); }
+}
+// floating combat text (rises and fades, drawn in world space)
+function addFloat(x, y, text, col) { floaters.push({ x, y, text, col: col || "#ffd24a", life: 1.2, max: 1.2 }); }
 
 // ---- homing missiles (unlocked in OUTFITTING; fire with F or the on-screen MSL button) ----
 function nearestHostile(x, y) {
@@ -787,6 +812,7 @@ function nearestDockable() {
 }
 function tryDock() {
   if (!running) return;
+  if (dockLock > 0) { toast("Combat lockout — bases are sealed to you for " + Math.ceil(dockLock) + "s", 2200); return; }
   const pl = nearestDockable();
   if (pl) { dockedPlanet = pl; enterStation(); }
   else if (Math.hypot(player.vx, player.vy) >= 90) toast("Too fast to dock — slow down (S to brake)");
@@ -961,12 +987,40 @@ function render() {
     drawShip(psx, psy, player.a, SHIP_ART[player.shipType], "#36e0ff", "#cdfaff", z * playerScale(), keys["w"] || keys["arrowup"] || (touch.steer && touch.mag > 0.3));
   }
 
+  // floating combat text (rising, fading)
+  ctx.textAlign = "center"; ctx.font = "bold 13px 'Courier New', monospace";
+  for (const ft of floaters) {
+    const [fx, fy] = toScreen(ft.x, ft.y);
+    ctx.globalAlpha = clamp(ft.life / ft.max, 0, 1);
+    ctx.fillStyle = ft.col; ctx.shadowBlur = 4; ctx.shadowColor = "rgba(0,0,0,0.9)";
+    ctx.fillText(ft.text, fx, fy);
+  }
+  ctx.globalAlpha = 1; ctx.shadowBlur = 0; ctx.textAlign = "left";
+
   drawTargeting(toScreen, z);
   drawWaypoints();
   drawLowHull();
   drawHUD();
   drawBossBar();
+  drawWantedBanner();
   drawMinimap();
+}
+
+// Top-center MOST WANTED banner — the highest bounty across all players (and you).
+function drawWantedBanner() {
+  let top = null;
+  if (mostWanted && wantedBounty > 0) top = { name: chatName + " (you)", bounty: Math.round(wantedBounty) };
+  for (const id in wantedBoard) { const e = wantedBoard[id]; if (!top || e.bounty > top.bounty) top = { name: e.name, bounty: e.bounty }; }
+  if (!top) return;
+  const txt = "☠ MOST WANTED  ·  " + top.name + "  ·  " + top.bounty.toLocaleString() + " cr";
+  ctx.save();
+  ctx.font = "14px 'Courier New', monospace"; ctx.textAlign = "center";
+  const w = (ctx.measureText(txt).width || txt.length * 8) + 40, bx = W / 2, by = enemies.some(e => e.warlord) ? 62 : 26;
+  ctx.fillStyle = "rgba(26,2,8,0.82)"; ctx.fillRect(bx - w / 2, by - 17, w, 27);
+  ctx.strokeStyle = "#ff2e63"; ctx.lineWidth = 1.5; ctx.strokeRect(bx - w / 2, by - 17, w, 27);
+  ctx.fillStyle = "#ffd24a"; ctx.shadowBlur = 8; ctx.shadowColor = "#ff2e63";
+  ctx.fillText(txt, bx, by + 2);
+  ctx.restore();
 }
 
 // Prominent top-center health bar while a Pirate Warlord is alive.
@@ -1283,7 +1337,13 @@ function drawMinimap() {
     if (big) { ctx.fillStyle = pl.col; ctx.font = "10px 'Courier New'"; ctx.textAlign="center";
       ctx.fillText(pl.name, mx + pl.x * sx, my + pl.y * sy - 8); }
   }
-  // radar shows planets only — no NPC traders, no hostiles. Distress beacons show on the full map.
+  // radar shows planets only — UNTIL you're MOST WANTED, then the hunters light up your scope.
+  if (mostWanted) {
+    for (const e of enemies) {
+      ctx.fillStyle = e.warlord ? "#ff2e63" : e.faction === "police" ? "#5aa0ff" : "#ff4455";
+      const s = e.warlord ? 3 : 2; ctx.fillRect(mx + e.x * sx - s / 2, my + e.y * sy - s / 2, s, s);
+    }
+  }
   if (big) {
     ctx.fillStyle = "#ffcc44";
     for (const b of beacons) { ctx.beginPath(); ctx.arc(mx + b.x * sx, my + b.y * sy, 3, 0, TAU); ctx.fill(); }
@@ -1344,11 +1404,48 @@ function shipPolySVG(type, cx, cy, s) {
   return `<g transform="translate(${cx},${cy}) rotate(-90) scale(${s})" filter="url(#stnglow)">${g}</g>`;
 }
 
+// Each planet gets its own station environment (ground tint, energy-channel colour, biome).
+const STATION_THEMES = {
+  "Helios Prime":  { g0: "#1a1c10", g1: "#070806", chan: "#ffcf4a", hot: "#fff0b0", biome: "market" },
+  "Cinder":        { g0: "#1d1109", g1: "#0a0503", chan: "#ff6a1c", hot: "#ffc070", biome: "lava" },
+  "Aqua Veil":     { g0: "#0a1620", g1: "#03070c", chan: "#36c6ff", hot: "#bdecff", biome: "ocean" },
+  "Forge Station": { g0: "#14171c", g1: "#06080a", chan: "#ff8a2c", hot: "#ffd0a0", biome: "industrial" },
+  "Verdant":       { g0: "#0e1a0f", g1: "#040806", chan: "#5dd06a", hot: "#c7f5cf", biome: "agri" },
+  "Pallas Med":    { g0: "#1a1016", g1: "#08040a", chan: "#ff6fae", hot: "#ffd0e6", biome: "medical" },
+  "Drift Market":  { g0: "#15101c", g1: "#070510", chan: "#c08bff", hot: "#e6d4ff", biome: "market" },
+};
+const DEFAULT_THEME = { g0: "#101822", g1: "#04070c", chan: "#ff6a1c", hot: "#ffc070", biome: "" };
+// Biome-specific background dressing layered behind the buildings.
+function biomeSVG(th) {
+  if (th.biome === "lava")
+    return `<g filter="url(#soft)" opacity="0.55"><ellipse cx="180" cy="694" rx="120" ry="26" fill="#ff5a14"/><ellipse cx="1090" cy="702" rx="150" ry="28" fill="#ff7a2c"/><ellipse cx="640" cy="710" rx="190" ry="24" fill="#ff6a1c"/></g>`;
+  if (th.biome === "ocean")
+    return `<rect x="0" y="612" width="1280" height="108" fill="${hexA(th.chan, 0.16)}"/>` +
+      `<g stroke="${hexA(th.hot, 0.5)}" stroke-width="1.5"><line x1="120" y1="642" x2="360" y2="642"/><line x1="500" y1="666" x2="820" y2="666"/><line x1="900" y1="690" x2="1200" y2="690"/><line x1="60" y1="704" x2="420" y2="704"/></g>`;
+  if (th.biome === "agri") {
+    let t = ""; for (let x = 50; x < 1240; x += 74) { const h = 26 + (x % 19); t += `<polygon points="${x},692 ${x - 11},692 ${x + 11},692 ${x},${692 - h}" fill="#2f7d3a"/><rect x="${x - 1}" y="692" width="2" height="10" fill="#1c3a1f"/>`; }
+    return `<g opacity="0.85">${t}</g>`;
+  }
+  if (th.biome === "industrial")
+    return `<g stroke="#5a6a78" stroke-width="2" fill="url(#bldG)"><rect x="40" y="612" width="60" height="92" rx="6"/><rect x="112" y="634" width="44" height="70" rx="6"/><rect x="1140" y="600" width="58" height="104" rx="6"/></g>` +
+      `<g stroke="#46566a" stroke-width="6"><line x1="70" y1="612" x2="70" y2="556"/><line x1="1168" y1="600" x2="1168" y2="536"/></g>` +
+      `<g fill="${hexA('#9fb0c0', 0.4)}" filter="url(#soft)"><ellipse cx="70" cy="546" rx="26" ry="16"/><ellipse cx="1168" cy="524" rx="30" ry="18"/></g>`;
+  if (th.biome === "medical")
+    return `<g opacity="0.45" filter="url(#soft)"><ellipse cx="640" cy="664" rx="380" ry="60" fill="#ffd0e6"/></g>` +
+      `<g fill="#ff6fae"><rect x="150" y="250" width="8" height="28"/><rect x="140" y="260" width="28" height="8"/><rect x="1118" y="250" width="8" height="28"/><rect x="1108" y="260" width="28" height="8"/></g>`;
+  if (th.biome === "market") {
+    let lights = ""; for (let x = 150; x < 1160; x += 64) lights += `<circle cx="${x}" cy="${298 + (x % 14) - 7}" r="2.4"/>`;
+    return `<g stroke="${hexA(th.hot, 0.5)}" stroke-width="1.5" fill="none"><path d="M120,300 Q640,256 1160,300"/></g><g fill="${th.chan}" filter="url(#stnglow)">${lights}</g>`;
+  }
+  return "";
+}
+
 // Full-screen, CLICKABLE top-down spaceport. It's one SVG so the click targets line up
 // exactly with the art: click TRADING POST to buy/sell, SHIPYARD to change ships, or the
 // LAUNCH BAY (your ship sits on the pad) to undock. Signage themes to the planet colour.
 function stationSceneSVG(pl) {
   const col = pl.col;
+  const th = STATION_THEMES[pl.name] || DEFAULT_THEME;
   const parked = shipPolySVG(player.shipType, 640, 452, 5);
   const yardShip = shipPolySVG("Dreadnought", 1070, 498, 2.8);   // a hull on the drydock cradle
   return `<svg viewBox="0 0 1280 720" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
@@ -1360,7 +1457,7 @@ function stationSceneSVG(pl) {
       <stop offset="0%" stop-color="#02040a"/><stop offset="100%" stop-color="#090d12"/>
     </linearGradient>
     <radialGradient id="groundG" cx="50%" cy="40%" r="80%">
-      <stop offset="0%" stop-color="#101822"/><stop offset="100%" stop-color="#04070c"/>
+      <stop offset="0%" stop-color="${th.g0}"/><stop offset="100%" stop-color="${th.g1}"/>
     </radialGradient>
     <linearGradient id="bldG" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#243343"/><stop offset="55%" stop-color="#121b25"/><stop offset="100%" stop-color="#070b11"/>
@@ -1436,14 +1533,15 @@ function stationSceneSVG(pl) {
     <line x1="415" y1="190" x2="415" y2="720"/><line x1="865" y1="190" x2="865" y2="720"/>
   </g>
 
-  <!-- molten-orange channels -->
+  <!-- energy channels (themed per planet) -->
   <g filter="url(#stnglow)">
-    <g fill="#ff6a1c" opacity="0.5">
+    <g fill="${th.chan}" opacity="0.5">
       <rect x="0" y="426" width="1280" height="7"/><rect x="636" y="190" width="7" height="530"/>
       <rect x="240" y="426" width="7" height="160"/><rect x="1010" y="220" width="7" height="210"/>
     </g>
-    <rect x="0" y="428.5" width="1280" height="2" fill="#ffc070" opacity="0.8"/>
+    <rect x="0" y="428.5" width="1280" height="2" fill="${th.hot}" opacity="0.8"/>
   </g>
+  ${biomeSVG(th)}
 
   <!-- coloured glow pools grounding each zone -->
   <g opacity="0.22" filter="url(#soft)">
@@ -1564,6 +1662,7 @@ function stationSceneSVG(pl) {
 function enterStation() {
   const pl = dockedPlanet;
   shake = 0;
+  layLow(true);                        // reaching a base clears your bounty (you've gone to ground)
   if (touchEnabled) document.getElementById("touch").classList.remove("show");  // flight controls off while docked
   driftPrices();                       // markets have moved since you were last here
   tickMarketEvents();                  // shortages & gluts evolve while you trade
@@ -1726,6 +1825,43 @@ function sfxBoom() {
     src.connect(f); f.connect(g); g.connect(masterOut()); src.start();
   } catch (e) {}
 }
+// Punchy blaster: a pitch-swept saw+square layer through a closing filter, plus a
+// noise transient for the crack. Heavier ships (more damage) fire deeper/beefier.
+function sfxShoot(weight) {
+  try {
+    audioCtx();
+    const out = masterOut(), t0 = actx.currentTime;
+    const w = clamp(weight || 1, 0.4, 1.8), base = (980 / w) * rand(0.94, 1.08);
+    const o = actx.createOscillator(); o.type = "sawtooth";
+    o.frequency.setValueAtTime(base * 1.9, t0); o.frequency.exponentialRampToValueAtTime(base * 0.5, t0 + 0.14);
+    const o2 = actx.createOscillator(); o2.type = "square"; o2.detune.value = -1200;
+    o2.frequency.setValueAtTime(base * 1.9, t0); o2.frequency.exponentialRampToValueAtTime(base * 0.5, t0 + 0.14);
+    const f = actx.createBiquadFilter(); f.type = "lowpass"; f.Q.value = 7;
+    f.frequency.setValueAtTime(4400, t0); f.frequency.exponentialRampToValueAtTime(700, t0 + 0.14);
+    const g = actx.createGain();
+    g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.17, t0 + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.17);
+    o.connect(f); o2.connect(f); f.connect(g); g.connect(out);
+    o.start(t0); o2.start(t0); o.stop(t0 + 0.19); o2.stop(t0 + 0.19);
+    // crack transient
+    const nn = (actx.sampleRate * 0.03) | 0, buf = actx.createBuffer(1, nn, actx.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < nn; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / nn, 3);
+    const src = actx.createBufferSource(); src.buffer = buf;
+    const nf = actx.createBiquadFilter(); nf.type = "highpass"; nf.frequency.value = 1100;
+    const ng = actx.createGain(); ng.gain.value = 0.09 * w;
+    src.connect(nf); nf.connect(ng); ng.connect(out); src.start(t0);
+  } catch (e) {}
+}
+// Crisp hit-confirm tick when your shot connects.
+function sfxHit() {
+  try {
+    audioCtx();
+    const t0 = actx.currentTime;
+    const o = actx.createOscillator(); o.type = "square";
+    o.frequency.setValueAtTime(1500, t0); o.frequency.exponentialRampToValueAtTime(620, t0 + 0.05);
+    const g = actx.createGain(); g.gain.setValueAtTime(0.07, t0); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.06);
+    o.connect(g); g.connect(masterOut()); o.start(t0); o.stop(t0 + 0.07);
+  } catch (e) {}
+}
 // Subtle generative space ambience: a slow open-fifth pad with a drifting filter,
 // plus the occasional soft bell. Everything routes through the master volume.
 let musicTimer = null;
@@ -1836,6 +1972,33 @@ function buyUpgrade(key) {
 // reputation, wanted level, ranks
 function addWanted(n) { player.wanted = Math.min(5, (player.wanted || 0) + n); toast("⚠ WANTED level " + Math.ceil(player.wanted), 2400); }
 function addRep(n)    { player.rep = (player.rep || 0) + n; }
+
+// ---- MOST WANTED: kill streak builds a shared bounty; can't dock for 60s after a kill ----
+function registerKill(amount) {
+  killStreak++;
+  const tier = Math.floor(wantedBounty / 5000);
+  wantedBounty += amount || 0;
+  dockLock = 60;
+  if (killStreak >= 3 && !mostWanted) {
+    mostWanted = true;
+    chatAnnounce("☠ " + chatName + " is now MOST WANTED — bounty " + Math.round(wantedBounty).toLocaleString() + " cr");
+    toast("☠ You are MOST WANTED — hostiles track you on the radar now", 3500);
+  } else if (mostWanted && Math.floor(wantedBounty / 5000) > tier) {
+    chatAnnounce("☠ " + chatName + "'s bounty climbs to " + Math.round(wantedBounty).toLocaleString() + " cr");
+  }
+  if (mostWanted) broadcastWanted();
+}
+function layLow(announce) {
+  if (mostWanted && announce) chatAnnounce("☠ " + chatName + " has slipped away (bounty cleared).");
+  killStreak = 0; wantedBounty = 0;
+  if (mostWanted) { mostWanted = false; broadcastWanted(); }
+}
+function updateWanted(dt) {
+  const now = performance.now();
+  for (const id in wantedBoard) { if (now - wantedBoard[id].t > 20000) delete wantedBoard[id]; }
+  wantedNetCd -= dt;
+  if (wantedNetCd <= 0) { wantedNetCd = 5; if (mostWanted) broadcastWanted(); }
+}
 function repDiscount(){ return Math.min(0.15, (player.rep || 0) / 2500); }
 function payFine() {
   const w = Math.ceil(player.wanted || 0); if (w <= 0) { toast("You have no bounty"); return; }
@@ -1867,9 +2030,9 @@ function spawnLoot(x, y, big) {
     loots.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 16, kind: c, amount: 1 + Math.floor(Math.random() * 3) }); }
 }
 function collectLoot(L) {
-  if (L.kind === "credits") { player.credits += L.amount; toast("+" + L.amount + " cr"); beep(900, 0.04, 0.05, "square"); }
-  else if (cargoUsed(player) < effCargo()) { player.cargo[L.kind] += L.amount; toast("Salvaged " + L.amount + " " + L.kind); }
-  else { player.credits += 12 * L.amount; toast("Hold full — sold salvage for " + (12 * L.amount) + " cr"); }
+  if (L.kind === "credits") { player.credits += L.amount; addFloat(L.x, L.y, "+" + L.amount + " cr", "#ffd24a"); beep(900, 0.04, 0.05, "square"); }
+  else if (cargoUsed(player) < effCargo()) { player.cargo[L.kind] += L.amount; addFloat(L.x, L.y, "+" + L.amount + " " + L.kind, "#8fe6ff"); }
+  else { player.credits += 12 * L.amount; addFloat(L.x, L.y, "hold full +" + (12 * L.amount) + " cr", "#ffd24a"); }
   checkWin();
 }
 
@@ -1898,7 +2061,7 @@ function makePirateAt(x, y) {
 function spawnBeacon() { beacons.push({ x: rand(300, WORLD.w - 300), y: rand(300, WORLD.h - 300), trap: Math.random() < 0.45, life: 80 }); }
 function resolveBeacon(b) {
   if (b.trap) { toast("It was a trap — ambush!", 2800); for (let i = 0; i < 3; i++) { const a = rand(0, TAU); enemies.push(makePirateAt(b.x + Math.cos(a) * 130, b.y + Math.sin(a) * 130)); } }
-  else { const r = Math.round(rand(300, 900)); player.credits += r; player.stats.rescues++; toast("Rescued a stranded ship! +" + r + " cr", 3000); checkWin(); }
+  else { const r = Math.round(rand(300, 900)); player.credits += r; player.stats.rescues++; toast("Rescued a stranded ship! +" + r + " cr", 3000); addFloat(b.x, b.y, "+" + r + " cr", "#55ff99"); checkWin(); }
   b.life = 0;
 }
 
@@ -1941,10 +2104,10 @@ function updateExtras(dt) {
   beacons = beacons.filter(b => b.life > 0);
   eventTimer -= dt;
   if (eventTimer <= 0 && beacons.length < 2) { spawnBeacon(); eventTimer = rand(45, 90); toast("Distress beacon detected — see your map (M)", 2600); }
-  if ((player.wanted || 0) >= 1) {
+  if ((player.wanted || 0) >= 1 || mostWanted) {
     policeTimer -= dt;
-    const want = Math.floor(player.wanted), pol = enemies.filter(e => e.faction === "police").length;
-    if (policeTimer <= 0 && pol < want + 1) { spawnPolice(); policeTimer = rand(5, 9); }
+    const want = Math.floor(player.wanted) + (mostWanted ? 2 : 0), pol = enemies.filter(e => e.faction === "police").length;
+    if (policeTimer <= 0 && pol < want + 1) { spawnPolice(); policeTimer = rand(mostWanted ? 3 : 5, mostWanted ? 6 : 9); }
   }
   // rare Pirate Warlord mini-boss (once you've got a real ship; one at a time, never in safe zones)
   warlordTimer -= dt;
@@ -2287,8 +2450,12 @@ function sendChat(text) {
   addChatMessage(chatName, text, false);
   broadcastChat(text);
 }
-let chatConnected = false;
-function broadcastChat(text) { /* replaced by the live transport once connected */ }
+let chatConnected = false, netClient = null, netReady = false;
+const NET_CHAT = "stellardawn/chat/global", NET_WANTED = "stellardawn/wanted/global";
+function netPublish(topic, obj) { if (netReady && netClient) { try { netClient.publish(topic, JSON.stringify(obj)); } catch (e) {} } }
+function broadcastChat(text) { netPublish(NET_CHAT, { id: netId, n: chatName, t: text }); }
+function chatAnnounce(text) { addChatMessage("", text, true); netPublish(NET_CHAT, { id: netId, t: text, sys: 1 }); }
+function broadcastWanted() { netPublish(NET_WANTED, { id: netId, n: chatName, b: Math.round(wantedBounty), w: mostWanted ? 1 : 0 }); }
 function setupChat() {
   const ci = document.getElementById("chatInput"); if (!ci) return;
   ci.addEventListener("keydown", e => {
@@ -2298,35 +2465,41 @@ function setupChat() {
   });
   addChatMessage("", "Chat: press Enter to type · /name to rename. Connecting to sector…", true);
 }
-// Shared "everyone" chat over a free public MQTT-over-WebSocket broker (no signup).
-// mqtt.js is pulled from a CDN; if it can't load or connect, chat stays local-only.
+// Shared chat + most-wanted board over a free public MQTT-over-WebSocket broker (no signup).
+// mqtt.js is pulled from a CDN; if it can't load or connect, everything stays local-only.
 function setupNetChat() {
-  const URL = "wss://broker.emqx.io:8084/mqtt", TOPIC = "stellardawn/chat/global";
-  const clientId = "sd_" + Math.random().toString(16).slice(2, 10);
+  const URL = "wss://broker.emqx.io:8084/mqtt";
   function connect() {
-    if (!window.mqtt) { addChatMessage("", "shared chat unavailable — messages are local only", true); return; }
-    let client;
-    try { client = window.mqtt.connect(URL, { clientId, clean: true, connectTimeout: 8000, reconnectPeriod: 5000 }); }
-    catch (e) { addChatMessage("", "shared chat unavailable — messages are local only", true); return; }
-    client.on("connect", () => { chatConnected = true; client.subscribe(TOPIC); addChatMessage("", "connected to sector chat — say hi!", true); });
-    client.on("close", () => { chatConnected = false; });
-    client.on("message", (t, payload) => {
+    if (!window.mqtt) { addChatMessage("", "shared chat unavailable — local only", true); return; }
+    try { netClient = window.mqtt.connect(URL, { clientId: netId, clean: true, connectTimeout: 8000, reconnectPeriod: 5000 }); }
+    catch (e) { addChatMessage("", "shared chat unavailable — local only", true); return; }
+    netClient.on("connect", () => {
+      chatConnected = true; netReady = true;
+      netClient.subscribe(NET_CHAT); netClient.subscribe(NET_WANTED);
+      addChatMessage("", "connected to sector chat — say hi!", true);
+      if (mostWanted) broadcastWanted();
+    });
+    netClient.on("close", () => { chatConnected = false; netReady = false; });
+    netClient.on("message", (topic, payload) => {
       try {
         const d = JSON.parse(payload.toString());
-        if (!d || d.id === clientId || !d.t) return;                 // skip our own echoes / empties
-        addChatMessage(String(d.n || "pilot").slice(0, 16), String(d.t).slice(0, 160), false);
-        beep(880, 0.03, 0.04, "square");
+        if (!d || d.id === netId) return;                         // ignore our own echoes
+        if (topic === NET_CHAT) {
+          if (!d.t) return;
+          if (d.sys) addChatMessage("", String(d.t).slice(0, 160), true);
+          else { addChatMessage(String(d.n || "pilot").slice(0, 16), String(d.t).slice(0, 160), false); beep(880, 0.03, 0.04, "square"); }
+        } else if (topic === NET_WANTED) {
+          if (d.w && d.b > 0) wantedBoard[d.id] = { name: String(d.n || "pilot").slice(0, 16), bounty: d.b | 0, t: performance.now() };
+          else delete wantedBoard[d.id];
+        }
       } catch (e) {}
     });
-    broadcastChat = function (text) {
-      if (chatConnected) { try { client.publish(TOPIC, JSON.stringify({ n: chatName, t: text, id: clientId })); } catch (e) {} }
-    };
   }
   try {
     if (window.mqtt) { connect(); return; }
     const s = document.createElement("script");
     s.src = "https://unpkg.com/mqtt/dist/mqtt.min.js"; s.onload = connect;
-    s.onerror = () => addChatMessage("", "shared chat unavailable (offline) — messages are local only", true);
+    s.onerror = () => addChatMessage("", "shared chat unavailable (offline) — local only", true);
     (document.head || document.documentElement).appendChild(s);
   } catch (e) {}
 }
