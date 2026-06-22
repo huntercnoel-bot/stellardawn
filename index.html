@@ -1825,29 +1825,42 @@ function sfxBoom() {
     src.connect(f); f.connect(g); g.connect(masterOut()); src.start();
   } catch (e) {}
 }
-// Punchy blaster: a pitch-swept saw+square layer through a closing filter, plus a
-// noise transient for the crack. Heavier ships (more damage) fire deeper/beefier.
+// Soft-clip curve gives the blaster grit/power.
+let shootCurve = null;
+function makeShootCurve() { const n = 1024, c = new Float32Array(n), k = 9; for (let i = 0; i < n; i++) { const x = i / (n - 1) * 2 - 1; c[i] = (1 + k) * x / (1 + k * Math.abs(x)); } return c; }
+// Heavy blaster: a sub-bass body that drops into a thump, a gritty distorted zap
+// sweeping down through a closing filter, and a noise crack. Heavier ships fire deeper.
 function sfxShoot(weight) {
   try {
     audioCtx();
     const out = masterOut(), t0 = actx.currentTime;
-    const w = clamp(weight || 1, 0.4, 1.8), base = (980 / w) * rand(0.94, 1.08);
-    const o = actx.createOscillator(); o.type = "sawtooth";
-    o.frequency.setValueAtTime(base * 1.9, t0); o.frequency.exponentialRampToValueAtTime(base * 0.5, t0 + 0.14);
-    const o2 = actx.createOscillator(); o2.type = "square"; o2.detune.value = -1200;
-    o2.frequency.setValueAtTime(base * 1.9, t0); o2.frequency.exponentialRampToValueAtTime(base * 0.5, t0 + 0.14);
-    const f = actx.createBiquadFilter(); f.type = "lowpass"; f.Q.value = 7;
-    f.frequency.setValueAtTime(4400, t0); f.frequency.exponentialRampToValueAtTime(700, t0 + 0.14);
-    const g = actx.createGain();
-    g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.17, t0 + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.17);
-    o.connect(f); o2.connect(f); f.connect(g); g.connect(out);
-    o.start(t0); o2.start(t0); o.stop(t0 + 0.19); o2.stop(t0 + 0.19);
-    // crack transient
-    const nn = (actx.sampleRate * 0.03) | 0, buf = actx.createBuffer(1, nn, actx.sampleRate), d = buf.getChannelData(0);
-    for (let i = 0; i < nn; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / nn, 3);
+    const w = clamp(weight || 1, 0.5, 2.0), dur = 0.18 + 0.06 * w;
+    // body: sine sub sweeping way down for weight
+    const body = actx.createOscillator(); body.type = "sine";
+    body.frequency.setValueAtTime(330 / w, t0); body.frequency.exponentialRampToValueAtTime(64 / w, t0 + dur);
+    const bg = actx.createGain();
+    bg.gain.setValueAtTime(0.0001, t0); bg.gain.exponentialRampToValueAtTime(0.5, t0 + 0.012); bg.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    body.connect(bg); bg.connect(out); body.start(t0); body.stop(t0 + dur + 0.03);
+    // zap: saw+square swept down, soft-clipped for grit, through a closing lowpass
+    if (!shootCurve) shootCurve = makeShootCurve();
+    const zf0 = (1250 / w) * rand(0.95, 1.06), zf1 = 230 / w;
+    const o1 = actx.createOscillator(); o1.type = "sawtooth";
+    o1.frequency.setValueAtTime(zf0, t0); o1.frequency.exponentialRampToValueAtTime(zf1, t0 + dur);
+    const o2 = actx.createOscillator(); o2.type = "square"; o2.detune.value = -1100;
+    o2.frequency.setValueAtTime(zf0, t0); o2.frequency.exponentialRampToValueAtTime(zf1, t0 + dur);
+    const lp = actx.createBiquadFilter(); lp.type = "lowpass"; lp.Q.value = 9;
+    lp.frequency.setValueAtTime(5200, t0); lp.frequency.exponentialRampToValueAtTime(480, t0 + dur);
+    const shaper = actx.createWaveShaper(); shaper.curve = shootCurve; shaper.oversample = "2x";
+    const zg = actx.createGain();
+    zg.gain.setValueAtTime(0.0001, t0); zg.gain.exponentialRampToValueAtTime(0.38, t0 + 0.008); zg.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o1.connect(lp); o2.connect(lp); lp.connect(shaper); shaper.connect(zg); zg.connect(out);
+    o1.start(t0); o2.start(t0); o1.stop(t0 + dur + 0.03); o2.stop(t0 + dur + 0.03);
+    // attack crack
+    const nn = (actx.sampleRate * 0.025) | 0, buf = actx.createBuffer(1, nn, actx.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < nn; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / nn, 2);
     const src = actx.createBufferSource(); src.buffer = buf;
-    const nf = actx.createBiquadFilter(); nf.type = "highpass"; nf.frequency.value = 1100;
-    const ng = actx.createGain(); ng.gain.value = 0.09 * w;
+    const nf = actx.createBiquadFilter(); nf.type = "bandpass"; nf.frequency.value = 1700; nf.Q.value = 0.7;
+    const ng = actx.createGain(); ng.gain.value = 0.16;
     src.connect(nf); nf.connect(ng); ng.connect(out); src.start(t0);
   } catch (e) {}
 }
