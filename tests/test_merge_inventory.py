@@ -25,6 +25,18 @@ class MergeTest(unittest.TestCase):
         self.assertEqual(merged["models"][0]["variants"][0]["options"], "065-A")
 
 
+class MissingShardTest(unittest.TestCase):
+    def test_missing_areas_keep_previous(self):
+        cities = json.loads(check_inventory.CONFIG.read_text())["cities"]
+        part = {"updated": "t2", "models": [], "cities": [{**cities[0], "stores": [], "checked": "t2"}]}
+        previous = {"cities": [{**cities[1], "stores": [{"id": "R9"}], "checked": "t1",
+                                "errors": {"96gb": "old"}}]}
+        merged = merge_inventory.merge([part], previous)
+        self.assertEqual([c["name"] for c in merged["cities"]], [cities[0]["name"], cities[1]["name"]])
+        self.assertEqual(merged["cities"][1]["checked"], "t1")
+        self.assertEqual(merged["cities"][1]["errors"], {})
+
+
 class PackTest(unittest.TestCase):
     def test_round_trip_and_combine(self):
         def st(label, status, checked):

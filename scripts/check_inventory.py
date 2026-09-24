@@ -92,6 +92,11 @@ class AppleUnavailable(RuntimeError):
     """Apple refused too many requests in a row; skip the rest of this run."""
 
 
+class RateLimited(RuntimeError):
+    """HTTP 541: Apple is limiting this machine. Retrying or switching endpoints doesn't
+    help (the limit is per IP), so the run stops and unreached areas carry forward."""
+
+
 _failures = 0
 _endpoint = None  # the endpoint that last answered
 
@@ -128,12 +133,16 @@ def http_get(url, params=None, headers=None):
                 _failures = 0
                 return text
             last_error = f"HTTP {status}: {' '.join(text[:160].split())}"
+            if status == 541:
+                _failures = MAX_CONSECUTIVE_FAILURES  # stop this run's Apple requests
+                raise RateLimited("HTTP 541: Apple rate-limited this runner; results carried forward")
+        except RateLimited:
+            raise
         except Exception as exc:  # network errors from either client
             last_error = str(exc)
             status = None
         if attempt < RETRIES - 1:
-            # 541 is Apple's rate limit / bot refusal; it eases off after a longer pause.
-            time.sleep(30 + random.random() * 15 if status == 541 else 3 + random.random() * 3)
+            time.sleep(3 + random.random() * 3)
     _failures += 1
     raise RuntimeError(last_error)
 
@@ -202,7 +211,7 @@ def fetch_pickup(variants, zip_code, referer=None):
         url, base = ENDPOINTS[name]
         try:
             data = json.loads(http_get(url, {**base, **params}, headers))
-        except AppleUnavailable:
+        except (AppleUnavailable, RateLimited):
             raise
         except Exception as exc:
             errors.append(f"{name}: {exc}")

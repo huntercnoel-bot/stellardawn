@@ -78,22 +78,33 @@ class CheckCityTest(unittest.TestCase):
 
 
 class FailFastTest(unittest.TestCase):
-    def test_stops_after_repeated_failures(self):
+    def run_refusals(self, answer):
         calls = []
 
         def refuse(*args, **kwargs):
             calls.append(1)
-            return 541, "<html>blocked</html>"
+            return answer
 
+        errors = []
         with mock.patch.object(check_inventory, "_get_once", refuse), \
                 mock.patch.object(check_inventory.time, "sleep"), \
                 mock.patch.object(check_inventory, "_failures", 0):
-            for _ in range(check_inventory.MAX_CONSECUTIVE_FAILURES):
-                with self.assertRaises(RuntimeError):
+            for _ in range(check_inventory.MAX_CONSECUTIVE_FAILURES + 1):
+                with self.assertRaises(RuntimeError) as ctx:
                     check_inventory.http_get("https://example.com")
-            with self.assertRaises(check_inventory.AppleUnavailable):
-                check_inventory.http_get("https://example.com")
+                errors.append(type(ctx.exception).__name__)
+        return calls, errors
+
+    def test_stops_after_repeated_failures(self):
+        calls, errors = self.run_refusals((503, "busy"))
         self.assertEqual(len(calls), check_inventory.MAX_CONSECUTIVE_FAILURES * check_inventory.RETRIES)
+        self.assertEqual(errors[-1], "AppleUnavailable")
+
+    def test_rate_limit_stops_immediately(self):
+        calls, errors = self.run_refusals((541, "Page Not Found"))
+        self.assertEqual(len(calls), 1)  # no retry, no second endpoint, nothing after
+        self.assertEqual(errors[0], "RateLimited")
+        self.assertTrue(all(e == "AppleUnavailable" for e in errors[1:]))
 
 
 class EndpointTest(unittest.TestCase):
@@ -112,7 +123,7 @@ class EndpointTest(unittest.TestCase):
         def fake_get(url, params, headers):
             seen.append((url.rsplit("/", 1)[-1], params.get("option.0"), headers["Referer"]))
             if url.endswith("pickup-message"):
-                return 541, "blocked"
+                return 503, "unavailable"
             return 200, json.dumps(payload(store("R1", "A", {})))
 
         with mock.patch.object(check_inventory, "_get_once", fake_get), \

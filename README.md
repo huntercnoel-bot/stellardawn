@@ -11,10 +11,11 @@ reference model that is normally in stock.
 | M5 Ultra · 256GB (30‑ or 36‑core, 1TB / 2TB) | `RO_MACSTUDIO_M5MAX_M5ULTRA_BET_BES_2026` + option codes, read from each setup's Apple page (`defaultKit`) | One setup per area, rotating across runs |
 | M5 Max · 36GB · 512GB (reference) | `MHL64LL/A` | Every area, every run |
 
-Apple rate-limits its pickup service (HTTP 541), so the areas are split across 3 parallel
+Apple rate-limits its pickup service (HTTP 541), so the areas are split across 4 parallel
 runners (each has its own IP and its own share of the limit), and the 256GB setups rotate
-across areas. Results for setups or areas not reached in a run carry forward from the
-previous run (up to an hour) and are labeled with their age on the page.
+across areas. If Apple still limits a runner, that runner stops at once and its unreached
+areas keep their previous results (labeled with their age on the page); the least recently
+checked areas go first next run.
 
 ## Micro Center and Best Buy
 
@@ -30,7 +31,7 @@ previous run (up to an hour) and are labeled with their age on the page.
 ## How it works
 
 1. `.github/workflows/check-inventory.yml` runs three jobs:
-   - `apple` (3 parallel shards): `scripts/check_inventory.py --shard i/3`
+   - `apple` (4 parallel shards): `scripts/check_inventory.py --shard i/4`
    - `retailers`: `scripts/check_retailers.py`
    - `publish`: `scripts/merge_inventory.py` combines the shards, then `site/` (the
      dashboard plus fresh JSON) is force-pushed to the `gh-pages` branch.
