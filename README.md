@@ -20,14 +20,12 @@ previous run (up to an hour) and are labeled with their age on the page.
 
 `scripts/check_retailers.py` runs as a separate job, on its own runner:
 
-- **Micro Center:** its site sits behind a Cloudflare challenge that blocks plain HTTP
-  clients from cloud servers, so pages load in a real Chromium (Playwright, under xvfb).
-  It finds product IDs by searching for the part number (and for "256GB"
-  M5 Ultra listings), then reads each of its 31 stores' stock from the product page loaded
-  with `?storeid=<id>` (the `.inventoryCnt` element, e.g. "5 NEW IN STOCK").
-- **Best Buy:** with a `BESTBUY_API_KEY` repo secret (free at developer.bestbuy.com) it
-  uses the official Stores API for per-store pickup; without one it reports the
-  bestbuy.com button state (available / sold out) near major cities.
+- **Micro Center:** its Cloudflare challenge blocks cloud servers, even a real browser, so
+  the automatic check is off by default (`MICROCENTER=1` turns it on, e.g. when running on
+  a home machine). The page links to Micro Center's search for each model.
+- **Best Buy:** add a `BESTBUY_API_KEY` repository secret (free at developer.bestbuy.com)
+  and the official Stores API reports per-store pickup for SKUs 6566930 (96GB) and
+  6566932 (M5 Max). Best Buy's old no-key endpoint is gone.
 
 ## How it works
 
