@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mac Studio Finder</title>
-<meta name="description" content="Apple Store pickup availability for Mac Studio 96GB and 256GB across major US cities.">
+<meta name="description" content="Apple Store pickup availability for the M5 Ultra Mac Studio, 96GB and 256GB, across major US cities.">
 <style>
 :root {
   --bg: #f6f7f9; --panel: #ffffff; --text: #16181d; --muted: #5f6673; --line: #e3e6eb;
@@ -13,12 +13,14 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
+    color-scheme: dark;
     --bg: #0f1115; --panel: #171a21; --text: #e8eaee; --muted: #9aa2af; --line: #2a2f39;
     --accent: #5aa2ff; --ok: #5fd68b; --ok-bg: #133321; --no: #9aa2af; --no-bg: #232833;
     --warn: #f3c460; --warn-bg: #3a2c0c; --err: #ff8a80; --err-bg: #3b1715;
   }
 }
 :root[data-theme="dark"] {
+  color-scheme: dark;
   --bg: #0f1115; --panel: #171a21; --text: #e8eaee; --muted: #9aa2af; --line: #2a2f39;
   --accent: #5aa2ff; --ok: #5fd68b; --ok-bg: #133321; --no: #9aa2af; --no-bg: #232833;
   --warn: #f3c460; --warn-bg: #3a2c0c; --err: #ff8a80; --err-bg: #3b1715;
@@ -40,6 +42,7 @@ header p { margin: 0; color: var(--muted); }
 .model { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
 .model h2 { margin: 0 0 4px; font-size: 16px; }
 .model p { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
+.variants { margin: 0 0 10px; padding-left: 18px; font-size: 13px; }
 .model .part { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: var(--muted); }
 .links { display: flex; flex-wrap: wrap; gap: 6px; }
 .links a { font-size: 13px; text-decoration: none; border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; }
@@ -67,7 +70,7 @@ header p { margin: 0; color: var(--muted); }
 .city td.store small { display: block; color: var(--muted); }
 .pill { display: inline-block; border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 600; white-space: nowrap; }
 .pill.available { background: var(--ok-bg); color: var(--ok); }
-.pill.unavailable, .pill.ineligible, .pill.unknown, .pill.not_stocked { background: var(--no-bg); color: var(--no); }
+.pill.unavailable, .pill.ineligible, .pill.unknown { background: var(--no-bg); color: var(--no); }
 .pill.error { background: var(--err-bg); color: var(--err); }
 .quote { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
 .city .msg { padding: 10px 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
@@ -83,7 +86,7 @@ footer { color: var(--muted); font-size: 13px; margin-top: 32px; }
 <div class="wrap">
   <header>
     <h1>Mac Studio Finder</h1>
-    <p>Apple Store pickup stock for the 96GB and 256GB Mac Studio near major US cities.
+    <p>Apple Store pickup stock for the M5 Ultra Mac Studio (96GB and 256GB) near major US cities.
       <span id="updated"></span></p>
   </header>
 
@@ -107,7 +110,8 @@ footer { color: var(--muted); font-size: 13px; margin-top: 32px; }
 <script>
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const LABELS = { available: "In stock", unavailable: "Out of stock", ineligible: "Not sold here", unknown: "Unknown", not_stocked: "Not in stores" };
+const LABELS = { available: "In stock", unavailable: "Out of stock", ineligible: "Not in stores", unknown: "Unknown", error: "Check failed" };
+const cityErrors = (c) => Object.entries(c.errors || {});
 let data = null;
 
 function load() {
@@ -131,10 +135,10 @@ function renderHeader() {
   const updated = new Date(data.updated);
   $("updated").textContent = "Last checked " + timeAgo(data.updated) + " (" + updated.toLocaleString() + ").";
   const stale = (Date.now() - updated) / 3600000 > 3;
-  const failed = data.cities.filter((c) => c.error).length;
+  const failed = data.cities.filter((c) => cityErrors(c).length).length;
   let notice = "";
   if (stale) notice += `<div class="notice warn">This data is more than 3 hours old. The scheduled check may have stopped; see the Actions tab on GitHub.</div>`;
-  if (failed) notice += `<div class="notice err">${failed} of ${data.cities.length} cities couldn't be checked in the last run.</div>`;
+  if (failed) notice += `<div class="notice err">${failed} of ${data.cities.length} cities had at least one failed check in the last run.</div>`;
   $("notice").innerHTML = notice;
 
   // Stats count each store once, even when it's near more than one city.
@@ -144,7 +148,6 @@ function renderHeader() {
   const cityHits = data.cities.filter((c) => c.stores.some(inStock)).length;
   const stats = [[stores.length, "Apple Stores checked"], [cityHits, "Cities with stock"]];
   data.models.forEach((m) => {
-    if (!m.part) return;
     stats.push([stores.filter((s) => s.availability[m.key]?.status === "available").length, "Stores with " + m.short]);
   });
   $("stats").innerHTML = stats.map(([n, l]) => `<div class="stat"><b>${n}</b><span>${esc(l)}</span></div>`).join("");
@@ -154,7 +157,8 @@ function renderModels(models) {
   $("models").innerHTML = models.map((m) => `
     <div class="model">
       <h2>${esc(m.label)}</h2>
-      <p>${esc(m.note)}${m.part ? ` <span class="part">${esc(m.part)}</span>` : ""}</p>
+      <p>${esc(m.note)}</p>
+      <ul class="variants">${m.variants.map((v) => `<li>${esc(v.label)} <span class="part">${esc(v.part || v.error || "part number pending")}</span></li>`).join("")}</ul>
       <div class="links">${m.retailers.map((r) => `<a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.name)} ↗</a>`).join("")}</div>
     </div>`).join("");
 }
@@ -171,7 +175,8 @@ function renderCities() {
     if ((q && !cityMatch && !stores.length) || (only && !stores.length)) return;
 
     const hits = city.stores.filter(inStock).length;
-    const badge = city.error ? `<span class="pill error">Check failed</span>`
+    const errs = cityErrors(city);
+    const badge = errs.length && !city.stores.length ? `<span class="pill error">Check failed</span>`
       : hits ? `<span class="pill available">${hits} in stock</span>`
       : `<span class="pill unavailable">None in stock</span>`;
     const open = hits > 0 || q ? " open" : "";
@@ -182,14 +187,17 @@ function renderCities() {
         <td class="hide-sm">${esc(s.distance)}</td>
         ${data.models.map((m) => {
           const a = s.availability[m.key] || { status: "unknown" };
-          return `<td><span class="pill ${esc(a.status)}">${esc(LABELS[a.status] || a.status)}</span>${a.quote ? `<span class="quote">${esc(a.quote)}</span>` : ""}</td>`;
+          const which = a.in_stock?.length && m.variants.length > 1 ? `<span class="quote">${a.in_stock.map(esc).join("<br>")}</span>` : "";
+          const quote = a.status === "error" ? "" : a.quote ? `<span class="quote">${esc(a.quote)}</span>` : "";
+          return `<td><span class="pill ${esc(a.status)}">${esc(LABELS[a.status] || a.status)}</span>${which || quote}</td>`;
         }).join("")}
       </tr>`).join("");
-    const body = city.error ? `<div class="msg">Couldn't reach Apple for this city: ${esc(city.error)}</div>`
-      : stores.length ? `<table><thead><tr><th>Store</th><th class="hide-sm">Distance</th>${cols}</tr></thead><tbody>${rows}</tbody></table>`
-      : `<div class="msg">No Apple Stores returned near ZIP ${esc(city.zip)}.</div>`;
+    const errMsg = errs.map(([k, msg]) => `<div class="msg">${esc((data.models.find((m) => m.key === k) || {}).short || k)} check failed: ${esc(msg)}</div>`).join("");
+    const body = errs.length && !city.stores.length ? errMsg
+      : errMsg + (stores.length ? `<table><thead><tr><th>Store</th><th class="hide-sm">Distance</th>${cols}</tr></thead><tbody>${rows}</tbody></table>`
+      : `<div class="msg">No Apple Stores returned near ZIP ${esc(city.zip)}.</div>`);
     html.push(`<details class="city"${open}>
-      <summary><h3>${esc(city.name)}, ${esc(city.state)}<small>${city.stores.length} stores</small></h3>${badge}</summary>
+      <summary><h3>${esc(city.name)}, ${esc(city.state)}<small>${city.stores.length} ${city.stores.length === 1 ? "store" : "stores"}</small></h3>${badge}</summary>
       ${body}
     </details>`);
   });

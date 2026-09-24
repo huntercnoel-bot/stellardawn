@@ -2,32 +2,55 @@
   "models": [
     {
       "key": "96gb",
-      "label": "Mac Studio M3 Ultra · 96GB · 1TB",
+      "label": "Mac Studio M5 Ultra · 96GB",
       "short": "96GB",
-      "part": "MU973LL/A",
-      "note": "Standard M3 Ultra model (28‑core CPU, 60‑core GPU). Stocked in Apple Stores.",
+      "note": "Base M5 Ultra: 30‑core CPU, 64‑core GPU, 96GB, 1TB ($5,499). Standard model, stocked in Apple Stores.",
+      "variants": [
+        {
+          "label": "30‑core CPU / 64‑core GPU · 1TB",
+          "part": "MHL74LL/A",
+          "page": "https://www.apple.com/shop/buy-mac/mac-studio/m5-ultra-chip-30-core-cpu-64-core-gpu-96gb-memory-1tb-storage"
+        }
+      ],
       "retailers": [
-        { "name": "Apple", "url": "https://www.apple.com/shop/buy-mac/mac-studio" },
-        { "name": "Best Buy", "url": "https://www.bestbuy.com/site/searchpage.jsp?st=MU973LL%2FA" },
-        { "name": "Micro Center", "url": "https://www.microcenter.com/search/search_results.aspx?Ntt=MU973LL%2FA" },
-        { "name": "B&H", "url": "https://www.bhphotovideo.com/c/search?q=MU973LL%2FA" },
-        { "name": "Adorama", "url": "https://www.adorama.com/l/?searchinfo=MU973LL%2FA" },
-        { "name": "Amazon", "url": "https://www.amazon.com/s?k=MU973LL%2FA" }
+        { "name": "Apple", "url": "https://www.apple.com/shop/buy-mac/mac-studio/m5-ultra-chip-30-core-cpu-64-core-gpu-96gb-memory-1tb-storage" },
+        { "name": "Best Buy", "url": "https://www.bestbuy.com/site/searchpage.jsp?st=MHL74LL%2FA" },
+        { "name": "Micro Center", "url": "https://www.microcenter.com/search/search_results.aspx?Ntt=MHL74LL%2FA" },
+        { "name": "B&H", "url": "https://www.bhphotovideo.com/c/search?q=MHL74LL%2FA" },
+        { "name": "Adorama", "url": "https://www.adorama.com/l/?searchinfo=MHL74LL%2FA" },
+        { "name": "Amazon", "url": "https://www.amazon.com/s?k=MHL74LL%2FA" }
       ]
     },
     {
       "key": "256gb",
-      "label": "Mac Studio M3 Ultra · 256GB",
+      "label": "Mac Studio M5 Ultra · 256GB",
       "short": "256GB",
-      "part": null,
-      "note": "Build‑to‑order only, and Apple stopped offering the 256GB option in May 2026. Apple Stores do not stock it, so look for leftover, open‑box or refurbished units at the retailers below.",
+      "note": "Sold in several setups (30‑ or 36‑core CPU, 1TB–16TB). These look like build‑to‑order configs, so Apple Stores may not stock them. The checker reads each setup's part number from Apple's page and asks every store anyway.",
+      "variants": [
+        {
+          "label": "30‑core CPU / 64‑core GPU · 1TB",
+          "page": "https://www.apple.com/shop/buy-mac/mac-studio/m5-ultra-chip-30-core-cpu-64-core-gpu-256gb-memory-1tb-storage"
+        },
+        {
+          "label": "30‑core CPU / 64‑core GPU · 2TB",
+          "page": "https://www.apple.com/shop/buy-mac/mac-studio/m5-ultra-chip-30-core-cpu-64-core-gpu-256gb-memory-2tb-storage"
+        },
+        {
+          "label": "36‑core CPU / 80‑core GPU · 1TB",
+          "page": "https://www.apple.com/shop/buy-mac/mac-studio/m5-ultra-chip-36-core-cpu-80-core-gpu-256gb-memory-1tb-storage"
+        },
+        {
+          "label": "36‑core CPU / 80‑core GPU · 2TB",
+          "page": "https://www.apple.com/shop/buy-mac/mac-studio/m5-ultra-chip-36-core-cpu-80-core-gpu-256gb-memory-2tb-storage"
+        }
+      ],
       "retailers": [
-        { "name": "Apple Refurbished", "url": "https://www.apple.com/shop/refurbished/mac/mac-studio" },
-        { "name": "Best Buy", "url": "https://www.bestbuy.com/site/searchpage.jsp?st=mac+studio+m3+ultra+256gb" },
-        { "name": "Micro Center", "url": "https://www.microcenter.com/search/search_results.aspx?Ntt=mac+studio+m3+ultra+256gb" },
-        { "name": "B&H", "url": "https://www.bhphotovideo.com/c/search?q=mac%20studio%20m3%20ultra%20256gb" },
-        { "name": "Adorama", "url": "https://www.adorama.com/l/?searchinfo=mac%20studio%20m3%20ultra%20256gb" },
-        { "name": "Amazon", "url": "https://www.amazon.com/s?k=mac+studio+m3+ultra+256gb" }
+        { "name": "Apple", "url": "https://www.apple.com/shop/buy-mac/mac-studio/m5-ultra-chip-30-core-cpu-64-core-gpu-256gb-memory-1tb-storage" },
+        { "name": "Best Buy", "url": "https://www.bestbuy.com/site/searchpage.jsp?st=mac+studio+m5+ultra+256gb" },
+        { "name": "Micro Center", "url": "https://www.microcenter.com/search/search_results.aspx?Ntt=mac+studio+m5+ultra+256gb" },
+        { "name": "B&H", "url": "https://www.bhphotovideo.com/c/search?q=mac%20studio%20m5%20ultra%20256gb" },
+        { "name": "Adorama", "url": "https://www.adorama.com/l/?searchinfo=mac%20studio%20m5%20ultra%20256gb" },
+        { "name": "Amazon", "url": "https://www.amazon.com/s?k=mac+studio+m5+ultra+256gb" }
       ]
     }
   ],
