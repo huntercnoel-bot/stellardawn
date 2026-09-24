@@ -30,6 +30,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -69,9 +70,10 @@ PAGE_HEADERS = {
 DEFAULT_REFERER = "https://www.apple.com/shop/buy-mac/mac-studio"
 DELAY_SECONDS = (0.8, 1.6)
 RETRIES = 2
+WORKERS = 4
 TIMEOUT_SECONDS = 15
 # Stop early when Apple refuses this many requests in a row, so a blocked run ends fast.
-MAX_CONSECUTIVE_FAILURES = 4
+MAX_CONSECUTIVE_FAILURES = 8
 # Standard part numbers look like MHL74LL/A; build-to-order product codes like Z1U5 or RO_...
 PART_RE = re.compile(r'"(?:partNumber|part|sku)"\s*:\s*"((?:M[A-Z0-9]{4}LL/A)|(?:Z[A-Z0-9]{3,9}))"')
 RO_RE = re.compile(r'"(RO_[A-Z0-9_]{6,})"')
@@ -134,8 +136,20 @@ def find_part(html):
     return match.group(1) if match else None
 
 
+DEFAULT_KIT_RE = re.compile(r'"defaultKit"\s*:\s*\{\s*"part"\s*:\s*"(RO_[A-Z0-9_]+)"\s*,\s*"options"\s*:\s*\{(.*?)\}')
+
+
 def discover(html):
-    """Read {part, options} for a variant from its Apple Store page, best effort."""
+    """Read {part, options} for a variant from its Apple Store page, best effort.
+
+    Configurator pages embed the configured kit, e.g.
+    "defaultKit":{"part":"RO_MACSTUDIO_...","options":{"memory":"065-CLQ7",...}}.
+    """
+    kit = DEFAULT_KIT_RE.search(html)
+    if kit:
+        codes = re.findall(r'"(065-[A-Z0-9]{4})"', kit.group(2))
+        if codes:
+            return {"part": kit.group(1), "options": ",".join(codes)}
     options = OPTIONS_RE.search(html)
     ro = RO_RE.search(html)
     if options and ro:
@@ -214,6 +228,8 @@ def store_url(store):
     for source in (store, store.get("retailStore") or {}):
         for key in STORE_URL_KEYS:
             url = source.get(key)
+            if isinstance(url, str) and url.startswith("/"):
+                url = "https://www.apple.com" + url
             if isinstance(url, str) and url.startswith("https://www.apple.com/"):
                 return url
     return ""
@@ -229,7 +245,10 @@ def parse_stores(payload, model):
         for variant in model["variants"]:
             if not variant.get("part"):
                 continue
-            info = parts.get(variant["part"], {})
+            info = parts.get(variant["part"])
+            if info is None and variant.get("options") and len(parts) == 1:
+                info = next(iter(parts.values()))  # build-to-order answers may be keyed differently
+            info = info or {}
             status = status_of(info)
             if status == "available":
                 in_stock.append(variant["label"])
@@ -248,25 +267,52 @@ def parse_stores(payload, model):
     return rows
 
 
+def request_groups(model):
+    """Standard parts share one request; each build-to-order variant (same product code,
+    different options) needs its own, since Apple keys the answer by product code."""
+    variants = [v for v in model["variants"] if v.get("part")]
+    standard = [v for v in variants if not v.get("options")]
+    return ([standard] if standard else []) + [[v] for v in variants if v.get("options")]
+
+
+def merge_rows(into, rows, key):
+    """Merge one request's store rows into `into`, keeping the best status per model."""
+    for sid, row in rows.items():
+        cur = into.setdefault(sid, {**row, "availability": {}})
+        new = row["availability"][key]
+        old = cur["availability"].get(key)
+        if old is None:
+            cur["availability"][key] = new
+            continue
+        if RANK.get(new["status"], 0) > RANK.get(old["status"], 0):
+            old["status"], old["quote"] = new["status"], new["quote"]
+        old["in_stock"] = old["in_stock"] + [x for x in new["in_stock"] if x not in old["in_stock"]]
+
+
 def check_city(city, models):
     """Query each model separately so one bad part number can't break the others."""
     stores, errors = {}, {}
     for model in models:
-        variants = [v for v in model["variants"] if v.get("part")]
-        if not variants:
+        groups = request_groups(model)
+        if not groups:
             errors[model["key"]] = "no part numbers to check"
             continue
-        try:
-            referer = variants[0].get("page") or model.get("apple_url")
-            for sid, row in parse_stores(fetch_pickup(variants, city["zip"], referer), model).items():
-                stores.setdefault(sid, {**row, "availability": {}})
-                stores[sid]["availability"].update(row["availability"])
-        except Exception as exc:  # the dashboard shows per-city, per-model errors
-            errors[model["key"]] = str(exc)
-        pause()
-    for store in stores.values():  # a model whose request failed for this city
+        failed = []
+        for group in groups:
+            try:
+                referer = group[0].get("page") or model.get("apple_url")
+                sub = {**model, "variants": group}
+                merge_rows(stores, parse_stores(fetch_pickup(group, city["zip"], referer), sub), model["key"])
+            except Exception as exc:  # the dashboard shows per-city, per-model errors
+                failed.append(str(exc))
+            pause()
+        if failed and len(failed) == len(groups):
+            errors[model["key"]] = failed[0]
+    for store in stores.values():  # a model whose requests all failed for this city
         for key, msg in errors.items():
             store["availability"].setdefault(key, {"status": "error", "quote": msg, "in_stock": []})
+        for model in models:  # a model Apple didn't mention for this store
+            store["availability"].setdefault(model["key"], {"status": "unknown", "quote": "", "in_stock": []})
     return list(stores.values()), errors
 
 
@@ -282,13 +328,17 @@ def main():
     print("HTTP client:", "curl_cffi (Chrome fingerprint)" if cffi_requests else "urllib (likely blocked by Apple)")
     resolve_parts(models)
 
-    results = []
-    for city in cities:
+    def run(city):
         stores, errors = check_city(city, models)
-        results.append({**city, "stores": stores, "errors": errors})
-        in_stock = sum(1 for s in stores if any(a["status"] == "available" for a in s["availability"].values()))
-        print(f"{city['name']}, {city['state']}: {len(stores)} stores, {in_stock} in stock"
+        counts = {m["short"]: sum(1 for s in stores if s["availability"].get(m["key"], {}).get("status") == "available")
+                  for m in models}
+        print(f"{city['name']}, {city['state']}: {len(stores)} stores, in stock {counts}"
               + (f"; errors {errors}" if errors else ""))
+        return {**city, "stores": stores, "errors": errors}
+
+    # A few cities at a time keeps a full run well inside the 5-minute schedule.
+    with ThreadPoolExecutor(max_workers=WORKERS) as pool:
+        results = list(pool.map(run, cities))
 
     print("Apple endpoint used:", _endpoint or "none answered")
     snapshot = {
