@@ -62,8 +62,8 @@ class StoreUrlTest(unittest.TestCase):
 
 class CheckCityTest(unittest.TestCase):
     def test_one_model_failing_keeps_the_other(self):
-        def fake_fetch(parts, zip_code):
-            if parts[0].startswith("Z"):
+        def fake_fetch(variants, zip_code, referer=None):
+            if variants[0]["part"].startswith("Z"):
                 raise RuntimeError("HTTP 400")
             return payload(store("R095", "Fifth Avenue", {"MHL74LL/A": {"pickupDisplay": "available"}}))
 
@@ -75,7 +75,63 @@ class CheckCityTest(unittest.TestCase):
         self.assertEqual(stores[0]["availability"]["256gb"]["status"], "error")
 
 
+class FailFastTest(unittest.TestCase):
+    def test_stops_after_repeated_failures(self):
+        calls = []
+
+        def refuse(*args, **kwargs):
+            calls.append(1)
+            return 541, "<html>blocked</html>"
+
+        with mock.patch.object(check_inventory, "_get_once", refuse), \
+                mock.patch.object(check_inventory.time, "sleep"), \
+                mock.patch.object(check_inventory, "_failures", 0):
+            for _ in range(check_inventory.MAX_CONSECUTIVE_FAILURES):
+                with self.assertRaises(RuntimeError):
+                    check_inventory.http_get("https://example.com")
+            with self.assertRaises(check_inventory.AppleUnavailable):
+                check_inventory.http_get("https://example.com")
+        self.assertEqual(len(calls), check_inventory.MAX_CONSECUTIVE_FAILURES * check_inventory.RETRIES)
+
+
+class EndpointTest(unittest.TestCase):
+    def setUp(self):
+        check_inventory._endpoint = None
+        check_inventory._failures = 0
+
+    def test_pickup_message_shape(self):
+        data = {"body": {"stores": [store("R1", "A", {"MHL74LL/A": {"pickupDisplay": "available"}})]}}
+        rows = check_inventory.parse_stores(data, M96)
+        self.assertEqual(rows["R1"]["availability"]["96gb"]["status"], "available")
+
+    def test_falls_back_and_remembers_endpoint(self):
+        seen = []
+
+        def fake_get(url, params, headers):
+            seen.append((url.rsplit("/", 1)[-1], params.get("option.0"), headers["Referer"]))
+            if url.endswith("pickup-message"):
+                return 541, "blocked"
+            return 200, json.dumps(payload(store("R1", "A", {})))
+
+        with mock.patch.object(check_inventory, "_get_once", fake_get), \
+                mock.patch.object(check_inventory.time, "sleep"):
+            variants = [{"part": "RO_MAC_STUDIO_X", "options": "065-AAAA,065-BBBB"}]
+            check_inventory.fetch_pickup(variants, "10153", "https://www.apple.com/shop/x")
+            check_inventory.fetch_pickup(variants, "10153", "https://www.apple.com/shop/x")
+        self.assertEqual([s[0] for s in seen],
+                         ["pickup-message", "pickup-message", "fulfillment-messages", "fulfillment-messages"])
+        self.assertEqual(seen[-1][1:], ("065-AAAA,065-BBBB", "https://www.apple.com/shop/x"))
+        self.assertEqual(check_inventory._endpoint, "fulfillment-messages")
+
+
 class FindPartTest(unittest.TestCase):
+    def test_discover_bto(self):
+        html = 'x "RO_MAC_STUDIO_M5_ULTRA_2026" y "/shop/fulfillment-messages?parts.0=RO_MAC_STUDIO_M5_ULTRA_2026&option.0=065-ABCD%2C065-EF12"'
+        self.assertEqual(check_inventory.discover(html),
+                         {"part": "RO_MAC_STUDIO_M5_ULTRA_2026", "options": "065-ABCD,065-EF12"})
+        self.assertEqual(check_inventory.discover('{"partNumber":"MHL74LL/A"}'), {"part": "MHL74LL/A"})
+        self.assertEqual(check_inventory.discover("nothing"), {})
+
     def test_standard_and_bto(self):
         self.assertEqual(check_inventory.find_part('{"partNumber":"MHL74LL/A"}'), "MHL74LL/A")
         self.assertEqual(check_inventory.find_part('x "part": "Z1U500038" y'), "Z1U500038")

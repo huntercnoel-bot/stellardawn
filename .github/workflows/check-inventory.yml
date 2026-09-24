@@ -2,26 +2,23 @@ name: Check inventory
 
 on:
   schedule:
-    - cron: "*/30 * * * *"
+    - cron: "*/5 * * * *"
   workflow_dispatch:
   push:
     branches: [main]
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
+# A newer check replaces one that's still running.
 concurrency:
   group: pages
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   check:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
 
@@ -29,17 +26,37 @@ jobs:
         with:
           python-version: "3.12"
 
+      # curl_cffi makes requests with Chrome's TLS fingerprint; Apple's bot protection
+      # blocks Python's default HTTP client.
+      - name: Install dependencies
+        run: pip install --quiet curl_cffi
+
       - name: Run tests
         run: python -m unittest discover tests
 
       - name: Check Apple Store pickup availability
+        id: check
+        continue-on-error: true
         run: python scripts/check_inventory.py --out site/inventory.json
 
-      - uses: actions/configure-pages@v5
+      # Publish to the gh-pages branch, which GitHub Pages serves at
+      # https://<owner>.github.io/<repo>/. One commit, force-pushed, so history stays small.
+      - name: Publish to GitHub Pages
+        if: hashFiles('site/inventory.json') != ''
+        working-directory: site
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          touch .nojekyll
+          git init -q -b gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Inventory $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push -q -f "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" gh-pages
 
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: site
-
-      - id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Report a failed Apple check
+        if: steps.check.outcome == 'failure'
+        run: |
+          echo "::error::Apple didn't answer for any city in this run; see the check step's log."
+          exit 1
