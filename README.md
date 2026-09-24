@@ -1,13 +1,20 @@
 # Mac Studio Finder
 
 A small dashboard that checks **Apple Store pickup availability** for the
-**M5 Ultra Mac Studio** near major US cities and publishes the results to GitHub Pages
-about every 5 minutes.
+**M5 Ultra Mac Studio** across ~108 US areas (every state with an Apple Store) and publishes
+the results to GitHub Pages about every 5 minutes. The M5 Max 36GB is included as a
+reference model that is normally in stock.
 
 | Model | Part | How it's checked |
 | --- | --- | --- |
-| M5 Ultra · 96GB · 1TB (30‑core CPU, 64‑core GPU) | `MHL74LL/A` | Apple Store pickup stock, per store |
-| M5 Ultra · 256GB (30‑ or 36‑core, 1TB / 2TB) | read from Apple's page each run | Same check; these look like build‑to‑order configs, so stores may show "Not in stores" |
+| M5 Ultra · 96GB · 1TB (30‑core CPU, 64‑core GPU) | `MHL74LL/A` | Every area, every run |
+| M5 Ultra · 256GB (30‑ or 36‑core, 1TB / 2TB) | `RO_MACSTUDIO_M5MAX_M5ULTRA_BET_BES_2026` + option codes, read from each setup's Apple page (`defaultKit`) | One setup per area, rotating across runs |
+| M5 Max · 36GB · 512GB (reference) | `MHL64LL/A` | Every area, every run |
+
+Apple rate-limits its pickup service (HTTP 541), so a run makes ~125 paced requests: one
+per area for the standard models, plus a rotating slice of areas for the 256GB setups.
+Results for setups or areas not reached in a run carry forward from the previous run
+(up to an hour) and are labeled with their age on the page.
 
 ## How it works
 

@@ -18,7 +18,7 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -34,10 +34,17 @@ jobs:
       - name: Run tests
         run: python -m unittest discover tests
 
+      # The last published results, so setups and cities not checked this run carry forward.
+      - name: Load previous results
+        run: |
+          git fetch --quiet --depth=1 origin gh-pages \
+            && git show FETCH_HEAD:inventory.json > previous.json \
+            || echo '{}' > previous.json
+
       - name: Check Apple Store pickup availability
         id: check
         continue-on-error: true
-        run: python scripts/check_inventory.py --out site/inventory.json
+        run: python scripts/check_inventory.py --out site/inventory.json --previous previous.json
 
       # Raw Apple responses for debugging, published as debug.json (skipped on scheduled runs).
       - name: Diagnose Apple responses

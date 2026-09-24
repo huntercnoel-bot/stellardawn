@@ -68,12 +68,18 @@ PAGE_HEADERS = {
     "Accept-Language": "en-US,en;q=0.9",
 }
 DEFAULT_REFERER = "https://www.apple.com/shop/buy-mac/mac-studio"
-DELAY_SECONDS = (1.2, 2.4)
+DELAY_SECONDS = (1.2, 2.0)
 RETRIES = 2
-WORKERS = 2
+WORKERS = 1
+# Build-to-order setups are checked in 1/BTO_SLICES of cities per run (rotating).
+BTO_SLICES = 6
+# Results for setups not checked this run stay on the page this long.
+CARRY_MINUTES = 60
+# Stop starting new cities after this long so the run always finishes and publishes.
+RUN_BUDGET_SECONDS = 390
 TIMEOUT_SECONDS = 15
 # Stop early when Apple refuses this many requests in a row, so a blocked run ends fast.
-MAX_CONSECUTIVE_FAILURES = 8
+MAX_CONSECUTIVE_FAILURES = 5
 # Standard part numbers look like MHL74LL/A; build-to-order product codes like Z1U5 or RO_...
 PART_RE = re.compile(r'"(?:partNumber|part|sku)"\s*:\s*"((?:M[A-Z0-9]{4}LL/A)|(?:Z[A-Z0-9]{3,9}))"')
 RO_RE = re.compile(r'"(RO_[A-Z0-9_]{6,})"')
@@ -124,8 +130,10 @@ def http_get(url, params=None, headers=None):
             last_error = f"HTTP {status}: {' '.join(text[:160].split())}"
         except Exception as exc:  # network errors from either client
             last_error = str(exc)
+            status = None
         if attempt < RETRIES - 1:
-            time.sleep(6 + random.random() * 6)  # Apple's 541 refusals ease off after a pause
+            # 541 is Apple's rate limit / bot refusal; it eases off after a longer pause.
+            time.sleep(30 + random.random() * 15 if status == 541 else 3 + random.random() * 3)
     _failures += 1
     raise RuntimeError(last_error)
 
@@ -230,18 +238,23 @@ def store_url(store):
             url = source.get(key)
             if isinstance(url, str) and url.startswith("/"):
                 url = "https://www.apple.com" + url
+            if isinstance(url, str) and url.startswith("http://www.apple.com/"):
+                url = "https://" + url[len("http://"):]
             if isinstance(url, str) and url.startswith("https://www.apple.com/"):
                 return url
     return ""
 
 
-def parse_stores(payload, model):
-    """Return {storeNumber: store row} with this model's availability from one response."""
+def parse_stores(payload, model, checked=""):
+    """Return {storeNumber: store row} with this model's availability from one response.
+
+    Each model's availability keeps per-setup results under "variants", so setups checked
+    in different runs can be combined (see summarize)."""
     stores = store_list(payload) or []
     rows = {}
     for store in stores:
         parts = store.get("partsAvailability", {})
-        best, quote, in_stock = "unknown", "", []
+        variants = {}
         for variant in model["variants"]:
             if not variant.get("part"):
                 continue
@@ -249,12 +262,11 @@ def parse_stores(payload, model):
             if info is None and variant.get("options") and len(parts) == 1:
                 info = next(iter(parts.values()))  # build-to-order answers may be keyed differently
             info = info or {}
-            status = status_of(info)
-            if status == "available":
-                in_stock.append(variant["label"])
-            if RANK[status] > RANK[best]:
-                best = status
-                quote = info.get("pickupSearchQuote") or info.get("storePickupQuote") or ""
+            variants[variant["label"]] = {
+                "status": status_of(info),
+                "quote": info.get("pickupSearchQuote") or info.get("storePickupQuote") or "",
+                "checked": checked,
+            }
         rows[store.get("storeNumber", "")] = {
             "id": store.get("storeNumber", ""),
             "name": store.get("storeName", ""),
@@ -262,9 +274,38 @@ def parse_stores(payload, model):
             "state": store.get("state", ""),
             "distance": store.get("storeDistanceWithUnit", ""),
             "url": store_url(store),
-            "availability": {model["key"]: {"status": best, "quote": quote, "in_stock": in_stock}},
+            "availability": {model["key"]: summarize({"variants": variants})},
         }
     return rows
+
+
+def summarize(avail):
+    """Set status / quote / in_stock from the per-setup results in avail["variants"]."""
+    variants = avail.get("variants", {})
+    best = max(variants.values(), key=lambda v: RANK.get(v["status"], 0), default=None)
+    avail["status"] = best["status"] if best else avail.get("status", "unknown")
+    avail["quote"] = best["quote"] if best else avail.get("quote", "")
+    avail["in_stock"] = [label for label, v in variants.items() if v["status"] == "available"]
+    return avail
+
+
+def city_models(models, city_index, run_index, slices):
+    """This city's share of build-to-order work for this run.
+
+    Standard parts are checked everywhere every run. Build-to-order setups cost one
+    request each, so each run only a 1/`slices` share of cities checks them, one setup
+    per city, rotating so every city cycles through every setup."""
+    out = []
+    for model in models:
+        bto = [v for v in model["variants"] if v.get("part") and v.get("options")]
+        if bto:
+            keep = None
+            if city_index % slices == run_index % slices:
+                keep = bto[(city_index + run_index // slices) % len(bto)]
+            model = {**model, "variants": [v for v in model["variants"] if not v.get("options") or v is keep],
+                     "rotated_out": keep is None}
+        out.append(model)
+    return out
 
 
 def request_plan(models):
@@ -285,20 +326,16 @@ def request_plan(models):
 
 
 def merge_rows(into, rows, key):
-    """Merge one request's store rows into `into`, keeping the best status per model."""
+    """Merge one request's store rows into `into`, combining per-setup results."""
     for sid, row in rows.items():
         cur = into.setdefault(sid, {**row, "availability": {}})
         new = row["availability"][key]
-        old = cur["availability"].get(key)
-        if old is None:
-            cur["availability"][key] = new
-            continue
-        if RANK.get(new["status"], 0) > RANK.get(old["status"], 0):
-            old["status"], old["quote"] = new["status"], new["quote"]
-        old["in_stock"] = old["in_stock"] + [x for x in new["in_stock"] if x not in old["in_stock"]]
+        old = cur["availability"].setdefault(key, {"variants": {}})
+        old.setdefault("variants", {}).update(new.get("variants", {}))
+        summarize(old)
 
 
-def check_city(city, models):
+def check_city(city, models, checked=""):
     """Check every model near one city. A failed request only affects the models in it."""
     stores, failed, tried = {}, {}, {}
     for variants, members in request_plan(models):
@@ -306,7 +343,7 @@ def check_city(city, models):
             referer = next((v["page"] for v in variants if v.get("page")), None) or members[0][0].get("apple_url")
             data = fetch_pickup(variants, city["zip"], referer)
             for model, vs in members:
-                merge_rows(stores, parse_stores(data, {**model, "variants": vs}), model["key"])
+                merge_rows(stores, parse_stores(data, {**model, "variants": vs}, checked), model["key"])
         except Exception as exc:  # the dashboard shows per-city, per-model errors
             for model, _ in members:
                 failed.setdefault(model["key"], str(exc))
@@ -317,43 +354,112 @@ def check_city(city, models):
     succeeded = {k for s in stores.values() for k in s["availability"]}
     errors = {k: msg for k, msg in failed.items() if k not in succeeded}
     for m in models:
-        if m["key"] not in tried:
+        if m["key"] not in tried and not m.get("rotated_out"):
             errors[m["key"]] = "no part numbers to check"
     for store in stores.values():
         for key, msg in errors.items():
-            store["availability"].setdefault(key, {"status": "error", "quote": msg, "in_stock": []})
-        for model in models:  # a model Apple didn't mention for this store
-            store["availability"].setdefault(model["key"], {"status": "unknown", "quote": "", "in_stock": []})
+            store["availability"].setdefault(key, {"status": "error", "quote": msg, "in_stock": [], "variants": {}})
+        for model in models:  # a model not checked for this store this run
+            store["availability"].setdefault(model["key"], {"status": "unknown", "quote": "", "in_stock": [], "variants": {}})
     return list(stores.values()), errors
+
+
+def parse_time(iso):
+    try:
+        return datetime.fromisoformat(iso)
+    except (TypeError, ValueError):
+        return None
+
+
+def carry_forward(results, previous, models, now):
+    """Fill gaps from the previous snapshot: setups not checked this run (if recent enough),
+    and whole cities Apple didn't answer for."""
+    prev_cities = {(c["name"], c["state"]): c for c in previous.get("cities", [])}
+    prev_stores = {s["id"]: s for c in previous.get("cities", []) for s in c.get("stores", [])}
+    fresh = lambda iso: (t := parse_time(iso)) is not None and (now - t).total_seconds() <= CARRY_MINUTES * 60
+    for city in results:
+        prev_city = prev_cities.get((city["name"], city["state"]))
+        if not city["stores"] and prev_city and prev_city.get("stores") and fresh(prev_city.get("checked")):
+            city["stores"] = prev_city["stores"]
+            city["checked"] = prev_city["checked"]
+            city["errors"] = {}
+            continue
+        for store in city["stores"]:
+            old = prev_stores.get(store["id"])
+            if not old:
+                continue
+            for m in models:
+                cur = store["availability"].setdefault(m["key"], {"variants": {}})
+                cur.setdefault("variants", {})
+                for label, v in old.get("availability", {}).get(m["key"], {}).get("variants", {}).items():
+                    if label not in cur["variants"] and fresh(v.get("checked")):
+                        cur["variants"][label] = v
+                if cur["variants"]:
+                    if cur.get("status") == "error":
+                        cur["status"] = "unknown"
+                    summarize(cur)
+
+
+def reuse_parts(models, previous):
+    """Reuse part numbers / option codes read from Apple's pages in a recent run."""
+    prev = {(m["key"], v["label"]): v for m in previous.get("models", []) for v in m.get("variants", [])}
+    for m in models:
+        for v in m["variants"]:
+            old = prev.get((m["key"], v["label"]))
+            if not v.get("part") and old and old.get("part"):
+                v["part"] = old["part"]
+                if old.get("options"):
+                    v["options"] = old["options"]
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--out", default=str(ROOT / "site" / "inventory.json"))
     ap.add_argument("--limit", type=int, default=0, help="only check the first N cities")
+    ap.add_argument("--previous", help="last published inventory.json, to carry results forward")
     args = ap.parse_args()
 
     config = json.loads(CONFIG.read_text())
     models = config["models"]
     cities = config["cities"][: args.limit or None]
+    previous = {}
+    if args.previous and Path(args.previous).exists():
+        try:
+            previous = json.loads(Path(args.previous).read_text())
+        except ValueError:
+            previous = {}
     print("HTTP client:", "curl_cffi (Chrome fingerprint)" if cffi_requests else "urllib (likely blocked by Apple)")
+    reuse_parts(models, previous)
     resolve_parts(models)
 
-    def run(city):
-        stores, errors = check_city(city, models)
+    now = datetime.now(timezone.utc)
+    stamp = now.isoformat(timespec="seconds")
+    run_index = int(now.timestamp() // 300)
+
+    started = time.monotonic()
+
+    def run(indexed):
+        i, city = indexed
+        if time.monotonic() - started > RUN_BUDGET_SECONDS:
+            return {**city, "stores": [], "errors": {m["key"]: "not reached this run" for m in models}, "checked": None}
+        stores, errors = check_city(city, city_models(models, i, run_index, BTO_SLICES), stamp)
         counts = {m["short"]: sum(1 for s in stores if s["availability"].get(m["key"], {}).get("status") == "available")
                   for m in models}
         print(f"{city['name']}, {city['state']}: {len(stores)} stores, in stock {counts}"
               + (f"; errors {errors}" if errors else ""))
-        return {**city, "stores": stores, "errors": errors}
+        return {**city, "stores": stores, "errors": errors, "checked": stamp if stores else None}
 
-    # A few cities at a time keeps a full run well inside the 5-minute schedule.
+    # Least recently checked cities first, so a run that runs out of time is fair over time.
+    last = {(c["name"], c["state"]): c.get("checked") or "" for c in previous.get("cities", [])}
+    order = sorted(enumerate(cities), key=lambda ic: last.get((ic[1]["name"], ic[1]["state"]), ""))
     with ThreadPoolExecutor(max_workers=WORKERS) as pool:
-        results = list(pool.map(run, cities))
+        done = {ic[0]: r for ic, r in zip(order, pool.map(run, order))}
+    results = [done[i] for i in range(len(cities))]
+    carry_forward(results, previous, models, now)
 
     print("Apple endpoint used:", _endpoint or "none answered")
     snapshot = {
-        "updated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "updated": stamp,
         "source": _endpoint,
         "models": models,
         "cities": results,
