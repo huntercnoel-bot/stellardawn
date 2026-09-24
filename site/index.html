@@ -159,6 +159,14 @@ a.buy small { font-weight: 400; font-size: 11px; opacity: .85; }
 a.buy:hover { background: var(--ok); color: var(--panel); }
 .city .msg { padding: 10px 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
 .city .msg.err { color: var(--err); }
+.retailers { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+.retail-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 16px 10px; }
+.retail-head h2 { margin: 0; font-size: 17px; }
+.retail-note { padding: 0 16px 12px; font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.retailers .stores { border-top: 1px solid var(--line); }
+a.pill { text-decoration: none; }
+.more { display: block; width: 100%; border: 0; border-top: 1px solid var(--line); background: transparent; color: var(--accent); padding: 10px; font-weight: 600; cursor: pointer; }
+.retail-hit { color: var(--ok); font-weight: 600; }
 .empty { color: var(--muted); text-align: center; padding: 28px 0; background: var(--panel); border-radius: 14px; border: 1px dashed var(--line); }
 footer { color: var(--muted); font-size: 13px; }
 
@@ -185,6 +193,7 @@ footer { color: var(--muted); font-size: 13px; }
 
   <div id="notice" hidden></div>
   <section class="models" id="models" aria-label="Models"></section>
+  <section class="retailers" id="retailers" aria-label="Micro Center and Best Buy" hidden></section>
 
   <div class="toolbar">
     <input type="search" id="q" placeholder="Search city, state or store" aria-label="Search city, state or store">
@@ -214,6 +223,8 @@ const store = {
 };
 const state = {
   data: null,
+  retailers: null,
+  showAllRetail: false,
   model: store.get("msf.model", "all"),
   onlyStock: store.get("msf.onlyStock", false),
   pinned: new Set(store.get("msf.pinned", [])),
@@ -255,6 +266,74 @@ function renderHeader() {
   $("notice").hidden = !notes.length;
 }
 
+// ---- Micro Center and Best Buy (retailers.json, from scripts/check_retailers.py)
+const BB_LABELS = { ADD_TO_CART: "Available", SOLD_OUT: "Sold out", CHECK_STORES: "Check stores",
+  COMING_SOON: "Coming soon", PRE_ORDER: "Pre-order", UNAVAILABLE_NEARBY: "Not nearby" };
+
+function retailerStores() {
+  const out = [];
+  Object.entries(state.retailers?.retailers || {}).forEach(([name, r]) =>
+    (r.stores || []).forEach((s) => out.push({ ...s, retailer: s.retailer || name })));
+  return out;
+}
+
+function retailerLine(m) {
+  const counts = {};
+  retailerStores().forEach((s) => {
+    if (s.availability?.[m.key]?.status === "available") counts[s.retailer] = (counts[s.retailer] || 0) + 1;
+  });
+  const parts = Object.entries(counts).map(([r, n]) => `${esc(r)}: ${n} ${n === 1 ? "store" : "stores"}`);
+  return parts.length ? `<p class="verdict retail-hit">Also in stock at ${parts.join(" · ")}.</p>` : "";
+}
+
+function retailPill(s, m) {
+  const a = s.availability?.[m.key];
+  if (!a) return "";
+  if (a.status === "available") {
+    return `<a class="buy" href="${esc(a.url || m.apple_url)}" target="_blank" rel="noopener">${esc(m.short)} in stock ↗<small>${esc(a.quote || "")}</small></a>`;
+  }
+  const label = a.status === "unavailable" ? (a.quote || "Out of stock") : (LABELS[a.status] || a.status);
+  return a.url ? `<a class="pill ${esc(a.status)}" href="${esc(a.url)}" target="_blank" rel="noopener">${esc(m.short)} · ${esc(label)}</a>`
+    : `<span class="pill ${esc(a.status)}">${esc(m.short)} · ${esc(label)}</span>`;
+}
+
+function renderRetailers() {
+  const box = $("retailers");
+  const ret = state.retailers?.retailers;
+  if (!ret) { box.hidden = true; return; }
+  const models = visibleModels();
+  const q = $("q").value.trim().toLowerCase();
+  let stores = retailerStores().filter((s) => models.some((m) => s.availability?.[m.key]));
+  if (q) stores = stores.filter((s) => (s.name + " " + s.state).toLowerCase().includes(q));
+  const hits = stores.filter((s) => isIn(s, models));
+  const shown = state.showAllRetail ? [...hits, ...stores.filter((s) => !isIn(s, models))] : hits;
+  const bb = ret["Best Buy"];
+  let bbNote = "";
+  if (bb && bb.source === "button-state") {
+    const lines = models.map((m) => {
+      const states = Object.values(bb.button_states?.[m.key] || {}).flat().filter(Boolean);
+      if (!states.length) return "";
+      const best = states.includes("ADD_TO_CART") ? "ADD_TO_CART" : states[0];
+      return `<span class="pill ${best === "ADD_TO_CART" ? "available" : "unavailable"}">${esc(m.short)} · ${esc(BB_LABELS[best] || best)}</span>`;
+    }).join("");
+    bbNote = lines ? `<div class="retail-note">Best Buy (bestbuy.com, near major cities): ${lines}</div>` : "";
+  }
+  box.hidden = false;
+  box.innerHTML = `
+    <div class="retail-head">
+      <h2>Micro Center &amp; Best Buy</h2>
+      <span class="live"><span>Updated ${esc(timeAgo(state.retailers.updated))}</span></span>
+    </div>
+    ${bbNote}
+    <div class="stores">${shown.map((s) => `
+      <div class="store${isIn(s, models) ? " in" : ""}">
+        <div><div class="store-name">${esc(s.name)}</div><div class="store-meta">${esc(s.retailer)}${s.state ? ` · ${esc(s.state)}` : ""}</div></div>
+        <div class="store-stock">${models.map((m) => retailPill(s, m)).join("")}</div>
+      </div>`).join("") || `<div class="msg">${stores.length ? "No Micro Center or Best Buy store has these in stock right now." : "No Micro Center or Best Buy results yet."}</div>`}
+    </div>
+    ${stores.length > hits.length ? `<button class="more" type="button" data-retail-all>${state.showAllRetail ? "Show only stores with stock" : `Show all ${stores.length} stores`}</button>` : ""}`;
+}
+
 function renderModels() {
   const stores = uniqueStores();
   $("models").innerHTML = state.data.models.map((m) => {
@@ -269,6 +348,7 @@ function renderModels() {
         <div class="count"><b>${inStores.length}</b><span>stores in stock</span></div>
       </div>
       <p class="verdict">${verdict}</p>
+      ${retailerLine(m)}
       <div class="actions">
         <a class="btn" href="${esc(m.apple_url)}" target="_blank" rel="noopener">Open on apple.com ↗</a>
         ${inStores.length ? `<button class="btn small ok" type="button" data-show="${esc(m.key)}">Show stores</button>` : ""}
@@ -364,7 +444,7 @@ function renderControls() {
 }
 
 function renderAll() {
-  renderHeader(); renderModels(); renderControls(); renderCities();
+  renderHeader(); renderModels(); renderRetailers(); renderControls(); renderCities();
 }
 
 function load(first) {
@@ -372,6 +452,11 @@ function load(first) {
     .then((r) => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
     .then((d) => {
       state.data = d;
+      return fetch("retailers.json?t=" + Date.now(), { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null)).catch(() => null)
+        .then((ret) => { state.retailers = ret; return d; });
+    })
+    .then((d) => {
       if (first) {
         // Start with in-stock and pinned cities open.
         d.cities.forEach((c) => { if (state.pinned.has(cityKey(c)) || c.stores.some((s) => isIn(s, d.models))) state.open.add(cityKey(c)); });
@@ -391,6 +476,7 @@ document.addEventListener("click", (e) => {
   const tog = e.target.closest("[data-toggle]");
   const seg = e.target.closest(".seg button");
   const show = e.target.closest("[data-show]");
+  if (e.target.closest("[data-retail-all]")) { state.showAllRetail = !state.showAllRetail; renderRetailers(); return; }
   if (pin) {
     const k = pin.dataset.pin;
     state.pinned.has(k) ? state.pinned.delete(k) : (state.pinned.add(k), state.open.add(k));
@@ -402,7 +488,7 @@ document.addEventListener("click", (e) => {
     renderCities();
   } else if (seg) {
     state.model = seg.dataset.model; store.set("msf.model", state.model);
-    renderControls(); renderCities();
+    renderControls(); renderRetailers(); renderCities();
   } else if (show) {
     state.model = show.dataset.show; state.onlyStock = true;
     store.set("msf.model", state.model); store.set("msf.onlyStock", true);
@@ -411,7 +497,7 @@ document.addEventListener("click", (e) => {
     $("cities").scrollIntoView({ behavior: "smooth", block: "start" });
   }
 });
-$("q").addEventListener("input", () => state.data && renderCities());
+$("q").addEventListener("input", () => { if (state.data) { renderRetailers(); renderCities(); } });
 $("onlyStock").addEventListener("change", (e) => {
   state.onlyStock = e.target.checked; store.set("msf.onlyStock", state.onlyStock);
   state.data && renderCities();

@@ -16,7 +16,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  check:
+  # Apple Store pickup stock (scripts/check_inventory.py).
+  apple:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -42,18 +43,78 @@ jobs:
             || echo '{}' > previous.json
 
       - name: Check Apple Store pickup availability
-        id: check
         continue-on-error: true
-        run: python scripts/check_inventory.py --out site/inventory.json --previous previous.json
+        run: python scripts/check_inventory.py --out out/inventory.json --previous previous.json
 
-      # Raw Apple responses for debugging, published as debug.json (skipped on scheduled runs).
+      # Raw Apple responses for debugging (skipped on scheduled runs).
       - name: Diagnose Apple responses
         if: github.event_name != 'schedule'
         continue-on-error: true
-        run: python scripts/diagnose.py
+        run: python scripts/diagnose.py && mv site/debug.json out/debug.json
 
-      # Publish to the gh-pages branch, which GitHub Pages serves at
-      # https://<owner>.github.io/<repo>/. One commit, force-pushed, so history stays small.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apple
+          path: out/
+          if-no-files-found: ignore
+          retention-days: 1
+
+  # Micro Center and Best Buy stock (scripts/check_retailers.py), on a separate runner.
+  retailers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install --quiet curl_cffi
+
+      - name: Check Micro Center and Best Buy
+        continue-on-error: true
+        env:
+          BESTBUY_API_KEY: ${{ secrets.BESTBUY_API_KEY }}
+        run: python scripts/check_retailers.py --out out/retailers.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: retailers
+          path: out/
+          if-no-files-found: ignore
+          retention-days: 1
+
+  # Combine the results and publish to the gh-pages branch, which GitHub Pages serves at
+  # https://<owner>.github.io/<repo>/.
+  publish:
+    needs: [apple, retailers]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      # Keep the last published file for anything this run didn't produce.
+      - name: Assemble site
+        run: |
+          git fetch --quiet --depth=1 origin gh-pages || true
+          for f in inventory.json retailers.json retailers-debug.json debug.json; do
+            if [ -f "artifacts/$f" ]; then
+              cp "artifacts/$f" "site/$f"
+            else
+              git show "FETCH_HEAD:$f" > "site/$f" 2>/dev/null || rm -f "site/$f"
+            fi
+          done
+          ls -la site
+
+      # One commit, force-pushed, so history stays small.
       - name: Publish to GitHub Pages
         if: hashFiles('site/inventory.json') != ''
         working-directory: site
@@ -67,9 +128,3 @@ jobs:
           git add -A
           git commit -q -m "Inventory $(date -u +%Y-%m-%dT%H:%MZ)"
           git push -q -f "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" gh-pages
-
-      - name: Report a failed Apple check
-        if: steps.check.outcome == 'failure'
-        run: |
-          echo "::error::Apple didn't answer for any city in this run; see the check step's log."
-          exit 1
