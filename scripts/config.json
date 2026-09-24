@@ -55,6 +55,7 @@
     },
     {
       "key": "m5max36",
+      "reference": true,
       "label": "Mac Studio M5 Max · 36GB",
       "short": "M5 Max",
       "note": "18‑core CPU, 32‑core GPU, 512GB · $2,499. Reference model that's usually in stock, so you can see the data is live.",

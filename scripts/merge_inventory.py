@@ -2,6 +2,7 @@
 """Combine inventory parts from parallel check_inventory.py shards into one inventory.json.
 
     python3 scripts/merge_inventory.py out/inventory.json parts/*.json [--previous prev.json]
+                                       [--history history.json]
 
 Areas missing from every part (a shard crashed or timed out) keep their last published
 results, so they never vanish from the page.
@@ -12,6 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import check_inventory as ci  # noqa: E402
+import history  # noqa: E402
 
 
 def merge(parts, previous=None):
@@ -41,13 +43,21 @@ def merge(parts, previous=None):
 
 def main():
     args = sys.argv[1:]
-    previous = None
-    if "--previous" in args:
-        i = args.index("--previous")
-        prev_path = args[i + 1]
+    def option(name):
+        if name not in args:
+            return None
+        i = args.index(name)
+        value = args[i + 1]
         del args[i:i + 2]
+        return value
+
+    previous, prev_stores = None, {}
+    prev_path, history_path = option("--previous"), option("--history")
+    if prev_path:
         try:
-            previous = ci.unpack(json.loads(Path(prev_path).read_text()))
+            raw = json.loads(Path(prev_path).read_text())
+            prev_stores = {k: json.loads(json.dumps(v)) for k, v in history.stores_by_id(raw).items()}
+            previous = ci.unpack(raw)
         except (OSError, ValueError) as exc:
             print(f"no previous results: {exc}")
     out, *paths = args
@@ -61,9 +71,19 @@ def main():
         sys.exit("no inventory parts to merge")
     if not parts:
         parts = [{**previous, "cities": []}]
-    merged = merge(parts, previous)
+    packed = ci.pack(merge(parts, previous))
+    if history_path:
+        try:
+            events = json.loads(Path(history_path).read_text()).get("events", [])
+        except (OSError, ValueError):
+            events = []
+        events = history.track(packed["stores"], prev_stores, events, packed["updated"])
+        Path(history_path).write_text(json.dumps({"updated": packed["updated"], "events": events},
+                                                 separators=(",", ":")))
+        print(f"history: {len(events)} events")
+    merged = packed
     Path(out).parent.mkdir(parents=True, exist_ok=True)
-    Path(out).write_text(json.dumps(ci.pack(merged), separators=(",", ":")))
+    Path(out).write_text(json.dumps(packed, separators=(",", ":")))
     print(f"merged {len(parts)} parts, {len(merged['cities'])} areas -> {out}")
 
 

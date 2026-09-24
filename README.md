@@ -38,7 +38,11 @@ checked areas go first next run.
 2. GitHub's `*/5` schedule is unreliable, so the last step (`scripts/next_run.py`) starts the
    next run about 5 minutes after the current one began, unless a run is already queued.
    Set the repository variable `PAUSE_CHECKS` to `1` to stop the chain.
-3. `inventory.json` lists each Apple Store once (areas overlap) and areas refer to stores
+3. The publish step also tracks stock history (`scripts/history.py`): each store's
+   availability gets `last_seen`, `in_since` and `last_restock`, and `history.json` keeps
+   14 days of restock / sell-out events, which the page shows as "Recent restocks" and
+   as "last in stock" per city and store.
+4. `inventory.json` lists each Apple Store once (areas overlap) and areas refer to stores
    by id, which keeps the file about 70% smaller.
 
 ## Live page

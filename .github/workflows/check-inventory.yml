@@ -122,8 +122,9 @@ jobs:
         run: |
           git fetch --quiet --depth=1 origin gh-pages || true
           git show FETCH_HEAD:inventory.json > previous.json 2>/dev/null || echo '{}' > previous.json
+          git show FETCH_HEAD:history.json > site/history.json 2>/dev/null || echo '{}' > site/history.json
           python scripts/merge_inventory.py site/inventory.json artifacts/inventory-part-*.json \
-            --previous previous.json || true
+            --previous previous.json --history site/history.json || true
           for f in inventory.json retailers.json retailers-debug.json debug.json; do
             if [ -f "artifacts/$f" ]; then
               cp "artifacts/$f" "site/$f"

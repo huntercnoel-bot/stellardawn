@@ -159,6 +159,19 @@ a.buy small { font-weight: 400; font-size: 11px; opacity: .85; }
 a.buy:hover { background: var(--ok); color: var(--panel); }
 .city .msg { padding: 10px 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
 .city .msg.err { color: var(--err); }
+.activity { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+.activity .msg { padding: 0 16px 14px; margin: 0; color: var(--muted); font-size: 14px; }
+.events { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.events li { display: grid; grid-template-columns: 92px minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; padding: 10px 16px; border-top: 1px solid var(--line); }
+.events li:first-child { border-top: 0; }
+.ev-kind { font-size: 12px; font-weight: 700; border-radius: 999px; padding: 2px 8px; text-align: center; white-space: nowrap; }
+.events .up .ev-kind { background: var(--ok-bg); color: var(--ok); }
+.events .down .ev-kind { background: var(--no-bg); color: var(--no); }
+.ev-what small { display: block; color: var(--muted); font-size: 12px; }
+.events time { color: var(--muted); font-size: 13px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cell { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.seen { font-size: 11px; color: var(--muted); padding-right: 4px; }
+.city-seen { display: block; font-size: 12px; font-weight: 400; color: var(--ok); margin-top: 2px; }
 .retailers { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
 .retail-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 16px 10px; }
 .retail-head h2 { margin: 0; font-size: 17px; }
@@ -170,6 +183,9 @@ a.pill { text-decoration: none; }
 footer { color: var(--muted); font-size: 13px; }
 
 @media (max-width: 560px) {
+  .events li { grid-template-columns: auto minmax(0, 1fr); }
+  .events time { grid-column: 2; }
+  .cell { align-items: flex-start; }
   header h1 { font-size: 24px; }
   .store { grid-template-columns: 1fr; }
   .store-stock { justify-content: start; }
@@ -192,6 +208,7 @@ footer { color: var(--muted); font-size: 13px; }
 
   <div id="notice" hidden></div>
   <section class="models" id="models" aria-label="Models"></section>
+  <section class="activity" id="activity" aria-label="Recent restocks" hidden></section>
   <section class="retailers" id="retailers" aria-label="Micro Center and Best Buy" hidden></section>
 
   <div class="toolbar">
@@ -223,6 +240,8 @@ const store = {
 const state = {
   data: null,
   retailers: null,
+  history: null,
+  moreActivity: false,
   showAllRetail: false,
   model: store.get("msf.model", "all"),
   onlyStock: store.get("msf.onlyStock", false),
@@ -344,14 +363,61 @@ function renderModels() {
   }).join("");
 }
 
+// ---- Stock history (history.json + per-store last_seen / in_since / last_restock)
+const feedModels = () => visibleModels().filter((m) => state.model !== "all" || !m.reference);
+const modelShort = (key) => (state.data.models.find((m) => m.key === key) || {}).short || key;
+
+function cityHistory(city, models) {
+  const keys = new Set(models.filter((m) => state.model !== "all" || !m.reference).map((m) => m.key));
+  if (!keys.size) return "";
+  let last = "";
+  city.stores.forEach((s) => keys.forEach((k) => {
+    const a = s.availability?.[k];
+    if (a?.last_seen && a.last_seen > last) last = a.last_seen;
+  }));
+  const ids = new Set(city.stores.map((s) => s.id));
+  const dayAgo = new Date(Date.now() - 86400000).toISOString();
+  const restocks = (state.history?.events || []).filter((e) =>
+    e.event === "restock" && keys.has(e.model) && ids.has(e.store) && e.t > dayAgo).length;
+  const parts = [];
+  if (last) parts.push(`last in stock ${timeAgo(last)}`);
+  if (restocks) parts.push(`${restocks} ${restocks === 1 ? "restock" : "restocks"} in 24h`);
+  return parts.length ? `<span class="city-seen">${esc(parts.join(" · "))}</span>` : "";
+}
+
+function renderActivity() {
+  const box = $("activity");
+  const events = state.history?.events;
+  if (!events) { box.hidden = true; return; }
+  const keys = new Set(feedModels().map((m) => m.key));
+  const list = events.filter((e) => keys.has(e.model)).slice().reverse();
+  const shown = list.slice(0, state.moreActivity ? 40 : 6);
+  const started = state.history.started || (events[0] && events[0].t);
+  box.hidden = false;
+  box.innerHTML = `
+    <div class="retail-head"><h2>Recent restocks</h2><span class="live"><span>Last 14 days</span></span></div>
+    ${shown.length ? `<ol class="events">${shown.map((e) => `
+      <li class="${e.event === "restock" ? "up" : "down"}">
+        <span class="ev-kind">${e.event === "restock" ? "Restocked" : "Sold out"}</span>
+        <span class="ev-what"><b>${esc(modelShort(e.model))}</b> at Apple ${esc(e.name)}<small>${esc(e.city)}, ${esc(e.state)}${
+          e.event === "sold_out" && e.lasted != null ? ` · lasted ${e.lasted < 60 ? e.lasted + " min" : Math.round(e.lasted / 60) + " hr"}` : ""}</small></span>
+        <time datetime="${esc(e.t)}" title="${esc(new Date(e.t).toLocaleString())}">${esc(timeAgo(e.t))}</time>
+      </li>`).join("")}</ol>`
+      : `<p class="msg">No restocks or sell-outs for these models yet. Every change at any tracked Apple Store will show up here${started ? "" : " as the tracker runs"}.</p>`}
+    ${list.length > 6 ? `<button class="more" type="button" data-more-activity>${state.moreActivity ? "Show fewer" : `Show ${Math.min(list.length, 40) - 6} more`}</button>` : ""}`;
+}
+
 function stockCell(s, m) {
   const a = s.availability[m.key] || { status: "unknown" };
   if (a.status !== "available") {
-    return `<span class="pill ${esc(a.status)}" title="${esc(a.quote || "")}">${esc(m.short)} · ${esc(LABELS[a.status] || a.status)}</span>`;
+    const seen = a.last_seen && !m.reference ? `<span class="seen">Last in stock ${esc(timeAgo(a.last_seen))}</span>` : "";
+    return `<span class="cell"><span class="pill ${esc(a.status)}" title="${esc(a.quote || "")}">${esc(m.short)} · ${esc(LABELS[a.status] || a.status)}</span>${seen}</span>`;
   }
   const setups = a.in_stock?.length ? a.in_stock : [m.variants[0]?.label];
+  const age = a.in_since ? timeAgo(a.in_since) : "";
+  const since = !age ? "" : age === "just now" ? "Just restocked" : `In stock for ${age.replace(" ago", "")}`;
   return setups.map((label) => `<a class="buy" href="${esc(appleUrl(m, label))}" target="_blank" rel="noopener"
-      title="Open this Mac Studio on apple.com">${esc(m.short)} in stock ↗<small>${esc(m.variants.length > 1 ? label : (a.quote || "Pick up at this store"))}</small></a>`).join("");
+      title="Open this Mac Studio on apple.com">${esc(m.short)} in stock ↗<small>${esc(m.variants.length > 1 ? label : (since || a.quote || "Pick up at this store"))}</small></a>`).join("");
 }
 
 function cityCard(city, models, q) {
@@ -391,7 +457,7 @@ function cityCard(city, models, q) {
     <div class="city-head">
       <button class="star" type="button" data-pin="${esc(key)}" aria-pressed="${pinned}" aria-label="${pinned ? "Unpin" : "Pin"} ${esc(city.name)}">${pinned ? "★" : "☆"}</button>
       <button class="city-toggle" type="button" data-toggle="${esc(key)}" aria-expanded="${!!open}">
-        <h3>${esc(city.name)}, ${esc(city.state)}<small>${city.stores.length} ${city.stores.length === 1 ? "store" : "stores"}</small></h3>
+        <h3>${esc(city.name)}, ${esc(city.state)}<small>${city.stores.length} ${city.stores.length === 1 ? "store" : "stores"}</small>${cityHistory(city, models)}</h3>
         <span class="badges">${badges}<span class="chev" aria-hidden="true">›</span></span>
       </button>
     </div>
@@ -428,7 +494,7 @@ function renderControls() {
 }
 
 function renderAll() {
-  renderHeader(); renderModels(); renderRetailers(); renderControls(); renderCities();
+  renderHeader(); renderModels(); renderActivity(); renderRetailers(); renderControls(); renderCities();
 }
 
 function load(first) {
@@ -440,7 +506,10 @@ function load(first) {
       state.data = d;
       return fetch("retailers.json?t=" + Date.now(), { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null)).catch(() => null)
-        .then((ret) => { state.retailers = ret; return d; });
+        .then((ret) => { state.retailers = ret; })
+        .then(() => fetch("history.json?t=" + Date.now(), { cache: "no-store" }))
+        .then((r) => (r.ok ? r.json() : null)).catch(() => null)
+        .then((h) => { state.history = h; return d; });
     })
     .then((d) => {
       if (first) {
@@ -462,6 +531,7 @@ document.addEventListener("click", (e) => {
   const tog = e.target.closest("[data-toggle]");
   const seg = e.target.closest(".seg button");
   const show = e.target.closest("[data-show]");
+  if (e.target.closest("[data-more-activity]")) { state.moreActivity = !state.moreActivity; renderActivity(); return; }
   if (e.target.closest("[data-retail-all]")) { state.showAllRetail = !state.showAllRetail; renderRetailers(); return; }
   if (pin) {
     const k = pin.dataset.pin;
@@ -474,7 +544,7 @@ document.addEventListener("click", (e) => {
     renderCities();
   } else if (seg) {
     state.model = seg.dataset.model; store.set("msf.model", state.model);
-    renderControls(); renderRetailers(); renderCities();
+    renderControls(); renderActivity(); renderRetailers(); renderCities();
   } else if (show) {
     state.model = show.dataset.show; state.onlyStock = true;
     store.set("msf.model", state.model); store.set("msf.onlyStock", true);
