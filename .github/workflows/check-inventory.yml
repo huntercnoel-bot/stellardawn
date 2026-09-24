@@ -39,6 +39,12 @@ jobs:
         continue-on-error: true
         run: python scripts/check_inventory.py --out site/inventory.json
 
+      # Raw Apple responses for debugging, published as debug.json (skipped on scheduled runs).
+      - name: Diagnose Apple responses
+        if: github.event_name != 'schedule'
+        continue-on-error: true
+        run: python scripts/diagnose.py
+
       # Publish to the gh-pages branch, which GitHub Pages serves at
       # https://<owner>.github.io/<repo>/. One commit, force-pushed, so history stays small.
       - name: Publish to GitHub Pages
