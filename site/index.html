@@ -318,8 +318,10 @@ function cityCard(city, models, q) {
       <div class="store-stock">${models.map((m) => stockCell(s, m)).join("")}</div>
     </div>`).join("");
   const errMsg = errs.map(([k, msg]) => `<div class="msg err">Couldn't check ${esc((state.data.models.find((m) => m.key === k) || {}).short || "stock")} here last time (${esc(msg)}).</div>`).join("");
-  const body = (errs.length && !city.stores.length) ? errMsg
-    : errMsg + (sorted.length ? `<div class="stores">${rows}</div>` : `<div class="msg">No Apple Stores found near ${esc(city.zip)}.</div>`);
+  const age = city.checked ? (new Date(state.data.updated) - new Date(city.checked)) / 60000 : 0;
+  const staleMsg = age > 8 ? `<div class="msg">Showing results from ${esc(timeAgo(city.checked))}; Apple wasn't checked here in the latest run.</div>` : "";
+  const body = staleMsg + ((errs.length && !city.stores.length) ? errMsg
+    : errMsg + (sorted.length ? `<div class="stores">${rows}</div>` : `<div class="msg">No Apple Stores found near ${esc(city.zip)}.</div>`));
 
   return `<section class="city${hits.length ? " has-stock" : ""}${open ? " open" : ""}" data-key="${esc(key)}">
     <div class="city-head">

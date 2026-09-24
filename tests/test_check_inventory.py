@@ -33,8 +33,8 @@ class ParseStoresTest(unittest.TestCase):
             store("R102", "SoHo", {"MHL74LL/A": {"pickupDisplay": "unavailable"}}),
             store("R999", "Odd", {}),
         ), M96)
-        self.assertEqual(rows["R095"]["availability"]["96gb"],
-                         {"status": "available", "quote": "Available Today", "in_stock": ["base"]})
+        a = rows["R095"]["availability"]["96gb"]
+        self.assertEqual((a["status"], a["quote"], a["in_stock"]), ("available", "Available Today", ["base"]))
         self.assertEqual(rows["R102"]["availability"]["96gb"]["status"], "unavailable")
         self.assertEqual(rows["R999"]["availability"]["96gb"]["status"], "unknown")
 
@@ -56,6 +56,8 @@ class StoreUrlTest(unittest.TestCase):
             {"hoursUrl": "https://www.apple.com/retail/fifthavenue/"}), "https://www.apple.com/retail/fifthavenue/")
         self.assertEqual(check_inventory.store_url(
             {"retailStore": {"storeUrl": "https://www.apple.com/retail/soho/"}}), "https://www.apple.com/retail/soho/")
+        self.assertEqual(check_inventory.store_url({"hoursUrl": "http://www.apple.com/retail/fifthavenue"}),
+                         "https://www.apple.com/retail/fifthavenue")
         self.assertEqual(check_inventory.store_url({"hoursUrl": "https://example.com/x"}), "")
         self.assertEqual(check_inventory.store_url({}), "")
 
@@ -156,6 +158,46 @@ class BuildToOrderTest(unittest.TestCase):
         self.assertEqual(errors, {})
         a = stores[0]["availability"]["256gb"]
         self.assertEqual((a["status"], a["in_stock"]), ("available", ["b"]))
+
+
+class RotationTest(unittest.TestCase):
+    MODEL = {"key": "256gb", "variants": [
+        {"label": l, "part": "RO_X", "options": o} for l, o in (("a", "1"), ("b", "2"), ("c", "3"))]}
+    STD = {"key": "96gb", "variants": [{"label": "base", "part": "MHL74LL/A"}]}
+
+    def picked(self, city, run):
+        m = check_inventory.city_models([self.STD, self.MODEL], city, run, 2)
+        return m[0]["variants"], [v["label"] for v in m[1]["variants"]]
+
+    def test_standard_always_and_bto_rotates(self):
+        self.assertEqual(self.picked(0, 0), (self.STD["variants"], ["a"]))
+        self.assertEqual(self.picked(1, 0)[1], [])          # other slice this run
+        self.assertEqual(self.picked(1, 1)[1], ["b"])
+        seen = {tuple(self.picked(0, run)[1]) for run in range(0, 12, 2)}
+        self.assertEqual(seen, {("a",), ("b",), ("c",)})    # city 0 cycles through every setup
+
+
+class CarryForwardTest(unittest.TestCase):
+    MODELS = [{"key": "256gb", "variants": []}]
+
+    def test_recent_setups_and_cities_carry(self):
+        now = check_inventory.datetime(2026, 9, 24, 15, 0, tzinfo=check_inventory.timezone.utc)
+        recent, old = "2026-09-24T14:40:00+00:00", "2026-09-24T12:00:00+00:00"
+        prev_store = {"id": "R1", "availability": {"256gb": {"variants": {
+            "a": {"status": "available", "quote": "Today", "checked": recent},
+            "b": {"status": "unavailable", "quote": "", "checked": old}}}}}
+        previous = {"cities": [
+            {"name": "NY", "state": "NY", "checked": recent, "stores": [prev_store]},
+            {"name": "LA", "state": "CA", "checked": recent, "stores": [{"id": "R2", "availability": {}}]}]}
+        results = [
+            {"name": "NY", "state": "NY", "stores": [{"id": "R1", "availability": {"256gb": {
+                "status": "unknown", "quote": "", "in_stock": [], "variants": {}}}}]},
+            {"name": "LA", "state": "CA", "stores": []}]
+        check_inventory.carry_forward(results, previous, self.MODELS, now)
+        a = results[0]["stores"][0]["availability"]["256gb"]
+        self.assertEqual((a["status"], a["in_stock"], sorted(a["variants"])), ("available", ["a"], ["a"]))
+        self.assertEqual(results[1]["stores"][0]["id"], "R2")
+        self.assertEqual(results[1]["checked"], recent)
 
 
 class FindPartTest(unittest.TestCase):
