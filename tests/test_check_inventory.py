@@ -10,8 +10,8 @@ import check_inventory  # noqa: E402
 
 M96 = {"key": "96gb", "variants": [{"label": "base", "part": "MHL74LL/A"}]}
 M256 = {"key": "256gb", "variants": [
-    {"label": "30-core 1TB", "part": "Z1U500001"},
-    {"label": "36-core 1TB", "part": "Z1U500002"},
+    {"label": "30-core 1TB", "part": "Z1U500001", "options": "065-AAAA"},
+    {"label": "36-core 1TB", "part": "Z1U500002", "options": "065-BBBB"},
     {"label": "not resolved", "part": None},
 ]}
 
@@ -131,11 +131,15 @@ class BuildToOrderTest(unittest.TestCase):
         self.assertEqual(check_inventory.discover(html), {
             "part": "RO_MACSTUDIO_M5MAX_M5ULTRA_BET_BES_2026", "options": "065-CLQ7,065-CLT9,065-CLQX"})
 
-    def test_request_groups(self):
-        model = {"variants": [{"part": "MHL74LL/A"}, {"part": "RO_X", "options": "065-A"},
-                              {"part": "RO_X", "options": "065-B"}, {"part": None}]}
-        groups = check_inventory.request_groups(model)
-        self.assertEqual([[v.get("options") for v in g] for g in groups], [[None], ["065-A"], ["065-B"]])
+    def test_request_plan(self):
+        m1 = {"key": "a", "variants": [{"part": "MHL74LL/A"}]}
+        m2 = {"key": "b", "variants": [{"part": "RO_X", "options": "065-A"},
+                                      {"part": "RO_X", "options": "065-B"}, {"part": None}]}
+        m3 = {"key": "c", "variants": [{"part": "MHL64LL/A"}]}
+        plan = check_inventory.request_plan([m1, m2, m3])
+        self.assertEqual([[v["part"] for v in vs] for vs, _ in plan],
+                         [["MHL74LL/A", "MHL64LL/A"], ["RO_X"], ["RO_X"]])
+        self.assertEqual([[m["key"] for m, _ in members] for _, members in plan], [["a", "c"], ["b"], ["b"]])
 
     def test_bto_answers_merge_best_status(self):
         model = {"key": "256gb", "variants": [

@@ -10,10 +10,10 @@ on:
 permissions:
   contents: write
 
-# A newer check replaces one that's still running.
+# Runs queue instead of overlapping, so a full check is never cut short.
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   check:
