@@ -72,11 +72,11 @@ DELAY_SECONDS = (1.2, 2.0)
 RETRIES = 2
 WORKERS = 1
 # Build-to-order setups are checked in 1/BTO_SLICES of cities per run (rotating).
-BTO_SLICES = 6
+BTO_SLICES = 3
 # Results for setups not checked this run stay on the page this long.
 CARRY_MINUTES = 60
 # Stop starting new cities after this long so the run always finishes and publishes.
-RUN_BUDGET_SECONDS = 390
+RUN_BUDGET_SECONDS = 300
 TIMEOUT_SECONDS = 15
 # Stop early when Apple refuses this many requests in a row, so a blocked run ends fast.
 MAX_CONSECUTIVE_FAILURES = 5
@@ -364,6 +364,46 @@ def check_city(city, models, checked=""):
     return list(stores.values()), errors
 
 
+def pack(snapshot):
+    """Store each Apple Store once (areas overlap, so the same store shows up near several
+    ZIPs): top-level "stores" by id, areas list store ids. Duplicate sightings of a store in
+    one run are combined, so a setup checked from either area counts for both."""
+    stores = {}
+    for city in snapshot["cities"]:
+        ids = []
+        for st in city["stores"]:
+            if isinstance(st, str):
+                ids.append(st)
+                continue
+            cur = stores.get(st["id"])
+            if cur is None:
+                stores[st["id"]] = st
+            else:
+                for key, avail in st.get("availability", {}).items():
+                    mine = cur["availability"].setdefault(key, {"variants": {}})
+                    for label, v in avail.get("variants", {}).items():
+                        old = mine.setdefault("variants", {}).get(label)
+                        if old is None or (v.get("checked") or "") > (old.get("checked") or ""):
+                            mine["variants"][label] = v
+                    if mine.get("variants"):
+                        summarize(mine)
+                    elif mine.get("status") in (None, "unknown", "error") and avail.get("status"):
+                        mine.update({k: avail[k] for k in ("status", "quote", "in_stock") if k in avail})
+            ids.append(st["id"])
+        city["stores"] = ids
+    snapshot["stores"] = {**snapshot.get("stores", {}), **stores}
+    return snapshot
+
+
+def unpack(snapshot):
+    """Inverse of pack(): areas get their store objects back. Safe on unpacked data."""
+    stores = snapshot.pop("stores", None) or {}
+    for city in snapshot.get("cities", []):
+        city["stores"] = [stores[i] if isinstance(i, str) else i for i in city.get("stores", [])
+                          if not isinstance(i, str) or i in stores]
+    return snapshot
+
+
 def parse_time(iso):
     try:
         return datetime.fromisoformat(iso)
@@ -417,15 +457,21 @@ def main():
     ap.add_argument("--out", default=str(ROOT / "site" / "inventory.json"))
     ap.add_argument("--limit", type=int, default=0, help="only check the first N cities")
     ap.add_argument("--previous", help="last published inventory.json, to carry results forward")
+    ap.add_argument("--shard", default="0/1",
+                    help="i/n: check only every n-th area starting at i (parallel runners each get "
+                         "their own Apple rate limit); combine the parts with merge_inventory.py")
     args = ap.parse_args()
 
     config = json.loads(CONFIG.read_text())
     models = config["models"]
-    cities = config["cities"][: args.limit or None]
+    shard, shards = (int(x) for x in args.shard.split("/"))
+    all_cities = config["cities"][: args.limit or None]
+    cities = [c for i, c in enumerate(all_cities) if i % shards == shard]
+    city_index = {(c["name"], c["state"]): i for i, c in enumerate(all_cities)}
     previous = {}
     if args.previous and Path(args.previous).exists():
         try:
-            previous = json.loads(Path(args.previous).read_text())
+            previous = unpack(json.loads(Path(args.previous).read_text()))
         except ValueError:
             previous = {}
     print("HTTP client:", "curl_cffi (Chrome fingerprint)" if cffi_requests else "urllib (likely blocked by Apple)")
@@ -439,7 +485,8 @@ def main():
     started = time.monotonic()
 
     def run(indexed):
-        i, city = indexed
+        _, city = indexed
+        i = city_index[(city["name"], city["state"])]  # global index keeps the 256GB rotation even
         if time.monotonic() - started > RUN_BUDGET_SECONDS:
             return {**city, "stores": [], "errors": {m["key"]: "not reached this run" for m in models}, "checked": None}
         stores, errors = check_city(city, city_models(models, i, run_index, BTO_SLICES), stamp)
@@ -466,7 +513,7 @@ def main():
     }
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(snapshot, indent=1))
+    out.write_text(json.dumps(pack(snapshot), separators=(",", ":")))
     print(f"wrote {out}")
 
     # Fail the run only when nothing came back at all, so partial data still publishes.

@@ -11,16 +11,18 @@ reference model that is normally in stock.
 | M5 Ultra · 256GB (30‑ or 36‑core, 1TB / 2TB) | `RO_MACSTUDIO_M5MAX_M5ULTRA_BET_BES_2026` + option codes, read from each setup's Apple page (`defaultKit`) | One setup per area, rotating across runs |
 | M5 Max · 36GB · 512GB (reference) | `MHL64LL/A` | Every area, every run |
 
-Apple rate-limits its pickup service (HTTP 541), so a run makes ~125 paced requests: one
-per area for the standard models, plus a rotating slice of areas for the 256GB setups.
-Results for setups or areas not reached in a run carry forward from the previous run
-(up to an hour) and are labeled with their age on the page.
+Apple rate-limits its pickup service (HTTP 541), so the areas are split across 3 parallel
+runners (each has its own IP and its own share of the limit), and the 256GB setups rotate
+across areas. Results for setups or areas not reached in a run carry forward from the
+previous run (up to an hour) and are labeled with their age on the page.
 
 ## Micro Center and Best Buy
 
 `scripts/check_retailers.py` runs as a separate job, on its own runner:
 
-- **Micro Center:** finds product IDs by searching for the part number (and for "256GB"
+- **Micro Center:** its site sits behind a Cloudflare challenge that blocks plain HTTP
+  clients from cloud servers, so pages load in a real Chromium (Playwright, under xvfb).
+  It finds product IDs by searching for the part number (and for "256GB"
   M5 Ultra listings), then reads each of its 31 stores' stock from the product page loaded
   with `?storeid=<id>` (the `.inventoryCnt` element, e.g. "5 NEW IN STOCK").
 - **Best Buy:** with a `BESTBUY_API_KEY` repo secret (free at developer.bestbuy.com) it
@@ -29,16 +31,16 @@ Results for setups or areas not reached in a run carry forward from the previous
 
 ## How it works
 
-1. `.github/workflows/check-inventory.yml` runs every 5 minutes (GitHub may delay scheduled runs a little), on pushes to `main`, and on demand.
-2. `scripts/check_inventory.py` reads any missing part numbers from Apple's product
-   pages, asks Apple's store‑pickup service which stores near each city in
-   `scripts/config.json` have each model in stock, and writes `site/inventory.json`.
-   Each model is checked separately, so one failing lookup doesn't hide the others.
-3. The workflow force-pushes `site/` (the dashboard plus fresh JSON) to the `gh-pages`
-   branch, which GitHub Pages serves.
-
-The page groups stores by city, shows stock for each model, and has a search box and an
-"in stock only" filter.
+1. `.github/workflows/check-inventory.yml` runs three jobs:
+   - `apple` (3 parallel shards): `scripts/check_inventory.py --shard i/3`
+   - `retailers`: `scripts/check_retailers.py`
+   - `publish`: `scripts/merge_inventory.py` combines the shards, then `site/` (the
+     dashboard plus fresh JSON) is force-pushed to the `gh-pages` branch.
+2. GitHub's `*/5` schedule is unreliable, so the last step (`scripts/next_run.py`) starts the
+   next run about 5 minutes after the current one began, unless a run is already queued.
+   Set the repository variable `PAUSE_CHECKS` to `1` to stop the chain.
+3. `inventory.json` lists each Apple Store once (areas overlap) and areas refer to stores
+   by id, which keeps the file about 70% smaller.
 
 ## Live page
 

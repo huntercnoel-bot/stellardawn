@@ -6,6 +6,8 @@ dashboard shows next to the Apple Store results.
 
     python3 scripts/check_retailers.py [--out site/retailers.json] [--previous prev.json]
 
+Micro Center sits behind a Cloudflare challenge that blocks plain HTTP clients from cloud
+servers, so its pages load in a real Chromium via Playwright (run under xvfb in CI).
 Micro Center (the approach other Micro Center trackers use): each store's stock shows on
 the product page when it's loaded with ?storeid=<store id>, in the ".inventoryCnt"
 element ("5 NEW IN STOCK", "SOLD OUT"). Product IDs are found by searching Micro Center
@@ -68,20 +70,67 @@ def get(url, params=None, headers=None):
     return ci.http_get(url, params, headers or PAGE_HEADERS)
 
 
+class Browser:
+    """A real Chromium session (Playwright) for sites behind a Cloudflare challenge."""
+
+    CHALLENGE = ("Just a moment", "Attention Required", "Access denied")
+
+    def __init__(self, headless=False):
+        from playwright.sync_api import sync_playwright
+        self._pw = sync_playwright().start()
+        self._browser = self._pw.chromium.launch(
+            headless=headless, args=["--disable-blink-features=AutomationControlled"],
+            executable_path=os.environ.get("CHROMIUM_PATH") or None)
+        self._ctx = self._browser.new_context(
+            user_agent=ci.HEADERS["User-Agent"], locale="en-US", viewport={"width": 1280, "height": 900})
+        self._ctx.route("**/*", lambda route: route.abort()
+                        if route.request.resource_type in ("image", "font", "media") else route.continue_())
+        self.page = self._ctx.new_page()
+
+    def get(self, url, params=None, wait_s=25):
+        if params:
+            url += ("&" if "?" in url else "?") + ci.urllib.parse.urlencode(params)
+        self.page.goto(url, wait_until="domcontentloaded", timeout=45000)
+        deadline = time.monotonic() + wait_s
+        while any(c in (self.page.title() or "") for c in self.CHALLENGE):
+            if time.monotonic() > deadline:
+                raise RuntimeError(f"challenge not passed: {self.page.title()}")
+            self.page.wait_for_timeout(1000)
+        return self.page.content()
+
+    def close(self):
+        try:
+            self._browser.close()
+        finally:
+            self._pw.stop()
+
+
+def open_browser():
+    try:
+        return Browser(headless=os.environ.get("HEADLESS") == "1")
+    except Exception as exc:  # playwright not installed or no display
+        debug["browser_error"] = str(exc)
+        print("No browser, falling back to plain HTTP:", exc)
+        return None
+
+
 # ---------------------------------------------------------------- Micro Center
 
-def mc_find_products():
+def mc_find_products(fetch):
     """Return {model key: [{id, title, url}]} by searching Micro Center."""
     found = {}
     for key, queries in MC_SEARCHES.items():
         items = {}
         for q in queries:
             try:
-                page = get(f"{MC_BASE}/search/search_results.aspx", {"Ntt": q, "myStore": "false"})
+                page = fetch(f"{MC_BASE}/search/search_results.aspx", {"Ntt": q, "myStore": "false"})
             except Exception as exc:
                 debug.setdefault("mc_search_errors", {})[q] = str(exc)
                 continue
-            links = re.findall(r'href="(/product/(\d{6,7})/[^"]+)"[^>]*>([^<]{10,300})<', page)
+            links = re.findall(r'href="(/product/(\d{6,7})/[^"]+)"[^>]*>\s*([^<]{10,300}?)\s*<', page)
+            if not links:  # titles may sit in data attributes instead of link text
+                links = [(path, pid, htmllib.unescape(t)) for path, pid, t in re.findall(
+                    r'href="(/product/(\d{6,7})/[^"]+)"[^>]*?(?:data-name|title)="([^"]{10,300})"', page)]
             debug.setdefault("mc_search", {})[q] = {"length": len(page), "links": links[:10]}
             if not links:
                 debug.setdefault("mc_search_snippet", {})[q] = page[:3000]
@@ -106,8 +155,8 @@ def mc_stock(page):
     return count, text
 
 
-def check_microcenter(stamp):
-    products = mc_find_products()
+def check_microcenter(stamp, fetch):
+    products = mc_find_products(fetch)
     debug["mc_products"] = products
     stores = []
     for sid, name in MC_STORES:
@@ -118,7 +167,7 @@ def check_microcenter(stamp):
             for item in items:
                 url = f"{item['url']}?storeid={sid}"
                 try:
-                    count, text = mc_stock(get(url))
+                    count, text = mc_stock(fetch(url))
                 except Exception as exc:
                     debug.setdefault("mc_errors", []).append(f"{sid} {item['id']}: {exc}")
                     pause()
@@ -190,6 +239,21 @@ def bb_button_state(stamp):
     return results
 
 
+def bb_page_probe(browser):
+    """Diagnostics: what bestbuy.com's product page says (pickup/sold out) in a real browser."""
+    for model, skus in BB_SKUS.items():
+        for sku in skus[:1]:
+            url = f"https://www.bestbuy.com/site/{sku}.p?skuId={sku}"
+            try:
+                page = browser.get(url)
+                text = " ".join(re.sub(r"<[^>]+>", " ", re.sub(r"<script.*?</script>", " ", page, flags=re.S)).split())
+                snips = [text[max(0, m.start() - 120): m.end() + 160] for m in
+                         re.finditer(r"Pickup|Sold Out|Add to Cart|Unavailable|Coming Soon", text)][:6]
+                debug.setdefault("bb_page", {})[sku] = {"title": browser.page.title(), "length": len(page), "snippets": snips}
+            except Exception as exc:
+                debug.setdefault("bb_page", {})[sku] = {"error": str(exc)}
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--out", default=str(ci.ROOT / "site" / "retailers.json"))
@@ -200,9 +264,17 @@ def main():
     print("HTTP client:", "curl_cffi (Chrome fingerprint)" if ci.cffi_requests else "urllib")
 
     snapshot = {"updated": stamp, "retailers": {}}
-    if not args.skip_microcenter:
-        mc_stores, mc_products = check_microcenter(stamp)
-        snapshot["retailers"]["Micro Center"] = {"stores": mc_stores, "products": mc_products}
+    browser = open_browser()
+    fetch = browser.get if browser else get
+    try:
+        if not args.skip_microcenter:
+            mc_stores, mc_products = check_microcenter(stamp, fetch)
+            snapshot["retailers"]["Micro Center"] = {"stores": mc_stores, "products": mc_products}
+        if browser:
+            bb_page_probe(browser)
+    finally:
+        if browser:
+            browser.close()
 
     bb_key = os.environ.get("BESTBUY_API_KEY", "").strip()
     if bb_key:
@@ -215,7 +287,7 @@ def main():
 
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(snapshot, indent=1))
+    out.write_text(json.dumps(snapshot, separators=(",", ":")))
     (out.parent / "retailers-debug.json").write_text(json.dumps(debug, indent=1))
     print(f"wrote {out}")
 
