@@ -178,7 +178,7 @@ footer { color: var(--muted); font-size: 13px; }
   <header>
     <div>
       <h1>Mac Studio Finder</h1>
-      <p>Live Apple Store pickup stock for the M5 Ultra Mac Studio.</p>
+      <p>Live Apple Store pickup stock for the M5 Ultra Mac Studio, with the M5 Max as a reference.</p>
     </div>
     <span class="live" id="live"><i></i><span id="updated">Loading…</span></span>
   </header>
@@ -190,8 +190,6 @@ footer { color: var(--muted); font-size: 13px; }
     <input type="search" id="q" placeholder="Search city, state or store" aria-label="Search city, state or store">
     <div class="seg" role="group" aria-label="Model">
       <button type="button" data-model="all" aria-pressed="true">All</button>
-      <button type="button" data-model="96gb" aria-pressed="false">96GB</button>
-      <button type="button" data-model="256gb" aria-pressed="false">256GB</button>
     </div>
     <label class="toggle"><input type="checkbox" id="onlyStock"> In stock only</label>
   </div>
@@ -209,7 +207,7 @@ footer { color: var(--muted); font-size: 13px; }
 <script>
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const LABELS = { available: "In stock", unavailable: "Out of stock", ineligible: "Not in stores", unknown: "Unknown", error: "Check failed" };
+const LABELS = { available: "In stock", unavailable: "Out of stock", ineligible: "Pickup unavailable", unknown: "Unknown", error: "Check failed" };
 const store = {
   get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
@@ -353,6 +351,12 @@ function renderCities() {
 }
 
 function renderControls() {
+  const seg = document.querySelector(".seg");
+  if (state.data && seg.children.length === 1) {
+    seg.insertAdjacentHTML("beforeend", state.data.models.map((m) =>
+      `<button type="button" data-model="${esc(m.key)}" aria-pressed="false">${esc(m.short)}</button>`).join(""));
+  }
+  if (state.data && state.model !== "all" && !state.data.models.some((m) => m.key === state.model)) state.model = "all";
   document.querySelectorAll(".seg button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.model === state.model)));
   $("onlyStock").checked = state.onlyStock;
 }

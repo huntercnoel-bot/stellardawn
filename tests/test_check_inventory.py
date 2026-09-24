@@ -124,6 +124,36 @@ class EndpointTest(unittest.TestCase):
         self.assertEqual(check_inventory._endpoint, "fulfillment-messages")
 
 
+class BuildToOrderTest(unittest.TestCase):
+    def test_default_kit(self):
+        html = ('"defaultKit":{"part":"RO_MACSTUDIO_M5MAX_M5ULTRA_BET_BES_2026","options":'
+                '{"memory":"065-CLQ7","thunderbolt":"065-CLT9","storage":"065-CLQX"}}')
+        self.assertEqual(check_inventory.discover(html), {
+            "part": "RO_MACSTUDIO_M5MAX_M5ULTRA_BET_BES_2026", "options": "065-CLQ7,065-CLT9,065-CLQX"})
+
+    def test_request_groups(self):
+        model = {"variants": [{"part": "MHL74LL/A"}, {"part": "RO_X", "options": "065-A"},
+                              {"part": "RO_X", "options": "065-B"}, {"part": None}]}
+        groups = check_inventory.request_groups(model)
+        self.assertEqual([[v.get("options") for v in g] for g in groups], [[None], ["065-A"], ["065-B"]])
+
+    def test_bto_answers_merge_best_status(self):
+        model = {"key": "256gb", "variants": [
+            {"label": "a", "part": "RO_X", "options": "065-A"}, {"label": "b", "part": "RO_X", "options": "065-B"}]}
+
+        def fake_fetch(variants, zip_code, referer=None):
+            status = "available" if variants[0]["options"] == "065-B" else "ineligible"
+            # keyed by something other than the product code, to exercise the fallback
+            return payload(store("R1", "A", {"RO_X_CTO": {"pickupDisplay": status}}))
+
+        with mock.patch.object(check_inventory, "fetch_pickup", fake_fetch), \
+                mock.patch.object(check_inventory.time, "sleep"):
+            stores, errors = check_inventory.check_city({"zip": "10153"}, [model])
+        self.assertEqual(errors, {})
+        a = stores[0]["availability"]["256gb"]
+        self.assertEqual((a["status"], a["in_stock"]), ("available", ["b"]))
+
+
 class FindPartTest(unittest.TestCase):
     def test_discover_bto(self):
         html = 'x "RO_MAC_STUDIO_M5_ULTRA_2026" y "/shop/fulfillment-messages?parts.0=RO_MAC_STUDIO_M5_ULTRA_2026&option.0=065-ABCD%2C065-EF12"'
@@ -141,7 +171,7 @@ class FindPartTest(unittest.TestCase):
 class ConfigTest(unittest.TestCase):
     def test_config_is_valid(self):
         config = json.loads(check_inventory.CONFIG.read_text())
-        self.assertEqual({m["key"] for m in config["models"]}, {"96gb", "256gb"})
+        self.assertEqual({m["key"] for m in config["models"]}, {"96gb", "256gb", "m5max36"})
         for model in config["models"]:
             self.assertTrue(model["apple_url"].startswith("https://www.apple.com/"))
             for v in model["variants"]:

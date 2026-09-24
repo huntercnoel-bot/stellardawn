@@ -52,6 +52,25 @@
         { "name": "Adorama", "url": "https://www.adorama.com/l/?searchinfo=mac%20studio%20m5%20ultra%20256gb" },
         { "name": "Amazon", "url": "https://www.amazon.com/s?k=mac+studio+m5+ultra+256gb" }
       ]
+    },
+    {
+      "key": "m5max36",
+      "label": "Mac Studio M5 Max · 36GB",
+      "short": "M5 Max",
+      "note": "Reference model: 18‑core CPU, 32‑core GPU, 36GB, 512GB ($2,499). Usually in stock, so it shows the checker is reading Apple correctly.",
+      "apple_url": "https://www.apple.com/shop/buy-mac/mac-studio",
+      "variants": [
+        {
+          "label": "18‑core CPU / 32‑core GPU · 512GB",
+          "part": "MHL64LL/A",
+          "page": "https://www.apple.com/shop/buy-mac/mac-studio"
+        }
+      ],
+      "retailers": [
+        { "name": "Best Buy", "url": "https://www.bestbuy.com/site/searchpage.jsp?st=MHL64LL%2FA" },
+        { "name": "Micro Center", "url": "https://www.microcenter.com/search/search_results.aspx?Ntt=MHL64LL%2FA" },
+        { "name": "B&H", "url": "https://www.bhphotovideo.com/c/search?q=MHL64LL%2FA" }
+      ]
     }
   ],
   "cities": [
