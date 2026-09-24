@@ -451,6 +451,8 @@ function load(first) {
   return fetch("inventory.json?t=" + Date.now(), { cache: "no-store" })
     .then((r) => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
     .then((d) => {
+      // Stores are listed once at the top level; areas refer to them by id.
+      if (d.stores) d.cities.forEach((c) => { c.stores = c.stores.map((id) => d.stores[id]).filter(Boolean); });
       state.data = d;
       return fetch("retailers.json?t=" + Date.now(), { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null)).catch(() => null)

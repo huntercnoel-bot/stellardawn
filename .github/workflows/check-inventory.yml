@@ -2,13 +2,14 @@ name: Check inventory
 
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "*/5 * * * *"  # backup; GitHub often delays or skips frequent schedules
   workflow_dispatch:
   push:
     branches: [main]
 
 permissions:
   contents: write
+  actions: write  # to start the next run (see "Start the next run")
 
 # Runs queue instead of overlapping, so a full check is never cut short.
 concurrency:
@@ -16,10 +17,15 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Apple Store pickup stock (scripts/check_inventory.py).
+  # Apple Store pickup stock, split across 3 runners. Each runner has its own IP, so each
+  # gets its own share of Apple's rate limit and the whole list is checked every run.
   apple:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2]
     steps:
       - uses: actions/checkout@v4
 
@@ -33,9 +39,10 @@ jobs:
         run: pip install --quiet curl_cffi
 
       - name: Run tests
+        if: matrix.shard == 0
         run: python -m unittest discover tests
 
-      # The last published results, so setups and cities not checked this run carry forward.
+      # The last published results, so setups and areas not checked this run carry forward.
       - name: Load previous results
         run: |
           git fetch --quiet --depth=1 origin gh-pages \
@@ -44,25 +51,27 @@ jobs:
 
       - name: Check Apple Store pickup availability
         continue-on-error: true
-        run: python scripts/check_inventory.py --out out/inventory.json --previous previous.json
+        run: >
+          python scripts/check_inventory.py --shard ${{ matrix.shard }}/3
+          --previous previous.json --out out/inventory-part-${{ matrix.shard }}.json
 
-      # Raw Apple responses for debugging (skipped on scheduled runs).
+      # Raw Apple responses for debugging (skipped on scheduled and chained runs).
       - name: Diagnose Apple responses
-        if: github.event_name != 'schedule'
+        if: matrix.shard == 0 && github.event_name == 'push'
         continue-on-error: true
         run: python scripts/diagnose.py && mv site/debug.json out/debug.json
 
       - uses: actions/upload-artifact@v4
         with:
-          name: apple
+          name: apple-${{ matrix.shard }}
           path: out/
           if-no-files-found: ignore
           retention-days: 1
 
-  # Micro Center and Best Buy stock (scripts/check_retailers.py), on a separate runner.
+  # Micro Center (behind Cloudflare, so a real Chromium under xvfb) and Best Buy.
   retailers:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
 
@@ -71,13 +80,15 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: pip install --quiet curl_cffi
+        run: |
+          pip install --quiet curl_cffi playwright
+          python -m playwright install --with-deps chromium
 
       - name: Check Micro Center and Best Buy
         continue-on-error: true
         env:
           BESTBUY_API_KEY: ${{ secrets.BESTBUY_API_KEY }}
-        run: python scripts/check_retailers.py --out out/retailers.json
+        run: xvfb-run --auto-servernum python scripts/check_retailers.py --out out/retailers.json
 
       - uses: actions/upload-artifact@v4
         with:
@@ -92,23 +103,30 @@ jobs:
     needs: [apple, retailers]
     if: always()
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
           merge-multiple: true
 
-      # Keep the last published file for anything this run didn't produce.
+      # Merge the Apple parts; keep the last published file for anything this run didn't produce.
       - name: Assemble site
         run: |
           git fetch --quiet --depth=1 origin gh-pages || true
+          if ls artifacts/inventory-part-*.json >/dev/null 2>&1; then
+            python scripts/merge_inventory.py site/inventory.json artifacts/inventory-part-*.json
+          fi
           for f in inventory.json retailers.json retailers-debug.json debug.json; do
             if [ -f "artifacts/$f" ]; then
               cp "artifacts/$f" "site/$f"
-            else
+            elif [ ! -f "site/$f" ]; then
               git show "FETCH_HEAD:$f" > "site/$f" 2>/dev/null || rm -f "site/$f"
             fi
           done
@@ -128,3 +146,12 @@ jobs:
           git add -A
           git commit -q -m "Inventory $(date -u +%Y-%m-%dT%H:%MZ)"
           git push -q -f "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" gh-pages
+
+      # GitHub's 5-minute schedule is unreliable, so each run starts the next one about
+      # 5 minutes after it began, unless another run is already queued or running.
+      - name: Start the next run
+        if: always()
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PAUSE_CHECKS: ${{ vars.PAUSE_CHECKS }}
+        run: python scripts/next_run.py
