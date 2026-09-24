@@ -50,6 +50,16 @@ class ParseStoresTest(unittest.TestCase):
         self.assertEqual(check_inventory.parse_stores({}, M96), {})
 
 
+class StoreUrlTest(unittest.TestCase):
+    def test_prefers_apple_links(self):
+        self.assertEqual(check_inventory.store_url(
+            {"hoursUrl": "https://www.apple.com/retail/fifthavenue/"}), "https://www.apple.com/retail/fifthavenue/")
+        self.assertEqual(check_inventory.store_url(
+            {"retailStore": {"storeUrl": "https://www.apple.com/retail/soho/"}}), "https://www.apple.com/retail/soho/")
+        self.assertEqual(check_inventory.store_url({"hoursUrl": "https://example.com/x"}), "")
+        self.assertEqual(check_inventory.store_url({}), "")
+
+
 class CheckCityTest(unittest.TestCase):
     def test_one_model_failing_keeps_the_other(self):
         def fake_fetch(parts, zip_code):
@@ -77,6 +87,7 @@ class ConfigTest(unittest.TestCase):
         config = json.loads(check_inventory.CONFIG.read_text())
         self.assertEqual({m["key"] for m in config["models"]}, {"96gb", "256gb"})
         for model in config["models"]:
+            self.assertTrue(model["apple_url"].startswith("https://www.apple.com/"))
             for v in model["variants"]:
                 self.assertTrue(v.get("part") or v.get("page"), v)
         zips = [c["zip"] for c in config["cities"]]

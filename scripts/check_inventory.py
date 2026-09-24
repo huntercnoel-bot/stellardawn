@@ -38,6 +38,7 @@ RETRIES = 3
 # Apple part numbers: standard models look like MHL74LL/A, build-to-order like Z1U500038.
 PART_RE = re.compile(r'"(?:partNumber|part|sku)"\s*:\s*"((?:M[A-Z0-9]{4}LL/A)|(?:Z[A-Z0-9]{3,9}))"')
 RANK = {"available": 4, "unavailable": 3, "ineligible": 2, "unknown": 1}
+STORE_URL_KEYS = ("hoursUrl", "storeUrl", "reservationUrl", "makeReservationUrl")
 
 
 def http_get(url):
@@ -88,6 +89,16 @@ def status_of(info):
     return display if display in RANK else "unknown"
 
 
+def store_url(store):
+    """Return the store's own apple.com page from a pickup response, if Apple sent one."""
+    for source in (store, store.get("retailStore") or {}):
+        for key in STORE_URL_KEYS:
+            url = source.get(key)
+            if isinstance(url, str) and url.startswith("https://www.apple.com/"):
+                return url
+    return ""
+
+
 def parse_stores(payload, model):
     """Return {storeNumber: store row} with this model's availability from one response."""
     stores = payload.get("body", {}).get("content", {}).get("pickupMessage", {}).get("stores", [])
@@ -111,6 +122,7 @@ def parse_stores(payload, model):
             "city": store.get("city", ""),
             "state": store.get("state", ""),
             "distance": store.get("storeDistanceWithUnit", ""),
+            "url": store_url(store),
             "availability": {model["key"]: {"status": best, "quote": quote, "in_stock": in_stock}},
         }
     return rows

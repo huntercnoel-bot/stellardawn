@@ -5,6 +5,7 @@
       "label": "Mac Studio M5 Ultra · 96GB",
       "short": "96GB",
       "note": "Base M5 Ultra: 30‑core CPU, 64‑core GPU, 96GB, 1TB ($5,499). Standard model, stocked in Apple Stores.",
+      "apple_url": "https://www.apple.com/shop/buy-mac/mac-studio/m5-ultra-chip-30-core-cpu-64-core-gpu-96gb-memory-1tb-storage",
       "variants": [
         {
           "label": "30‑core CPU / 64‑core GPU · 1TB",
@@ -13,7 +14,6 @@
         }
       ],
       "retailers": [
-        { "name": "Apple", "url": "https://www.apple.com/shop/buy-mac/mac-studio/m5-ultra-chip-30-core-cpu-64-core-gpu-96gb-memory-1tb-storage" },
         { "name": "Best Buy", "url": "https://www.bestbuy.com/site/searchpage.jsp?st=MHL74LL%2FA" },
         { "name": "Micro Center", "url": "https://www.microcenter.com/search/search_results.aspx?Ntt=MHL74LL%2FA" },
         { "name": "B&H", "url": "https://www.bhphotovideo.com/c/search?q=MHL74LL%2FA" },
@@ -26,6 +26,7 @@
       "label": "Mac Studio M5 Ultra · 256GB",
       "short": "256GB",
       "note": "Sold in several setups (30‑ or 36‑core CPU, 1TB–16TB). These look like build‑to‑order configs, so Apple Stores may not stock them. The checker reads each setup's part number from Apple's page and asks every store anyway.",
+      "apple_url": "https://www.apple.com/shop/buy-mac/mac-studio/m5-ultra-chip-30-core-cpu-64-core-gpu-256gb-memory-1tb-storage",
       "variants": [
         {
           "label": "30‑core CPU / 64‑core GPU · 1TB",
@@ -45,7 +46,6 @@
         }
       ],
       "retailers": [
-        { "name": "Apple", "url": "https://www.apple.com/shop/buy-mac/mac-studio/m5-ultra-chip-30-core-cpu-64-core-gpu-256gb-memory-1tb-storage" },
         { "name": "Best Buy", "url": "https://www.bestbuy.com/site/searchpage.jsp?st=mac+studio+m5+ultra+256gb" },
         { "name": "Micro Center", "url": "https://www.microcenter.com/search/search_results.aspx?Ntt=mac+studio+m5+ultra+256gb" },
         { "name": "B&H", "url": "https://www.bhphotovideo.com/c/search?q=mac%20studio%20m5%20ultra%20256gb" },

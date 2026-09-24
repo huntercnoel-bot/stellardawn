@@ -44,9 +44,6 @@ header p { margin: 0; color: var(--muted); }
 .model p { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
 .variants { margin: 0 0 10px; padding-left: 18px; font-size: 13px; }
 .model .part { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: var(--muted); }
-.links { display: flex; flex-wrap: wrap; gap: 6px; }
-.links a { font-size: 13px; text-decoration: none; border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; }
-.links a:hover { border-color: var(--accent); }
 .controls { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; margin: 8px 0 16px; }
 .controls input[type=search] {
   flex: 1 1 220px; min-width: 0; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line);
@@ -70,6 +67,18 @@ header p { margin: 0; color: var(--muted); }
 .city td.store small { display: block; color: var(--muted); }
 .pill { display: inline-block; border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 600; white-space: nowrap; }
 .pill.available { background: var(--ok-bg); color: var(--ok); }
+a.pill.available { text-decoration: none; box-shadow: inset 0 0 0 1px var(--ok); }
+a.pill.available:hover, a.pill.available:focus-visible { background: var(--ok); color: var(--panel); }
+.apple-btn {
+  display: inline-block; background: var(--accent); color: var(--panel); text-decoration: none;
+  font-weight: 600; font-size: 14px; border-radius: 999px; padding: 6px 14px;
+}
+.apple-btn:hover, .apple-btn:focus-visible { filter: brightness(1.1); }
+.model .others { margin: 10px 0 0; font-size: 13px; }
+.model .others a { color: var(--muted); }
+.variants a { color: var(--text); }
+.city td.store a { color: var(--text); }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .pill.unavailable, .pill.ineligible, .pill.unknown { background: var(--no-bg); color: var(--no); }
 .pill.error { background: var(--err-bg); color: var(--err); }
 .quote { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
@@ -112,6 +121,8 @@ const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const LABELS = { available: "In stock", unavailable: "Out of stock", ineligible: "Not in stores", unknown: "Unknown", error: "Check failed" };
 const cityErrors = (c) => Object.entries(c.errors || {});
+// Apple page for the setup that's in stock, falling back to the model's page.
+const appleUrl = (m, label) => (m.variants.find((v) => v.label === label) || {}).page || m.apple_url;
 let data = null;
 
 function load() {
@@ -158,8 +169,9 @@ function renderModels(models) {
     <div class="model">
       <h2>${esc(m.label)}</h2>
       <p>${esc(m.note)}</p>
-      <ul class="variants">${m.variants.map((v) => `<li>${esc(v.label)} <span class="part">${esc(v.part || v.error || "part number pending")}</span></li>`).join("")}</ul>
-      <div class="links">${m.retailers.map((r) => `<a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.name)} ↗</a>`).join("")}</div>
+      <ul class="variants">${m.variants.map((v) => `<li><a href="${esc(v.page || m.apple_url)}" target="_blank" rel="noopener">${esc(v.label)}</a> <span class="part">${esc(v.part || v.error || "part number pending")}</span></li>`).join("")}</ul>
+      <a class="apple-btn" href="${esc(m.apple_url)}" target="_blank" rel="noopener">Buy on apple.com ↗</a>
+      <p class="others">Also check: ${m.retailers.map((r) => `<a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.name)}</a>`).join(" · ")}</p>
     </div>`).join("");
 }
 
@@ -183,13 +195,17 @@ function renderCities() {
     const cols = data.models.map((m) => `<th>${esc(m.short)}</th>`).join("");
     const rows = stores.map((s) => `
       <tr>
-        <td class="store">${esc(s.name)}<small>${esc(s.city)}, ${esc(s.state)}</small></td>
+        <td class="store">${s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.name)}</a>` : esc(s.name)}<small>${esc(s.city)}, ${esc(s.state)}</small></td>
         <td class="hide-sm">${esc(s.distance)}</td>
         ${data.models.map((m) => {
           const a = s.availability[m.key] || { status: "unknown" };
-          const which = a.in_stock?.length && m.variants.length > 1 ? `<span class="quote">${a.in_stock.map(esc).join("<br>")}</span>` : "";
+          const which = a.in_stock?.length && m.variants.length > 1
+            ? `<span class="quote">${a.in_stock.map((label) => `<a href="${esc(appleUrl(m, label))}" target="_blank" rel="noopener">${esc(label)} ↗</a>`).join("<br>")}</span>` : "";
           const quote = a.status === "error" ? "" : a.quote ? `<span class="quote">${esc(a.quote)}</span>` : "";
-          return `<td><span class="pill ${esc(a.status)}">${esc(LABELS[a.status] || a.status)}</span>${which || quote}</td>`;
+          const pill = a.status === "available"
+            ? `<a class="pill available" href="${esc(appleUrl(m, a.in_stock?.[0]))}" target="_blank" rel="noopener" title="Open on apple.com">In stock ↗</a>`
+            : `<span class="pill ${esc(a.status)}">${esc(LABELS[a.status] || a.status)}</span>`;
+          return `<td>${pill}${which || quote}</td>`;
         }).join("")}
       </tr>`).join("");
     const errMsg = errs.map(([k, msg]) => `<div class="msg">${esc((data.models.find((m) => m.key === k) || {}).short || k)} check failed: ${esc(msg)}</div>`).join("");
