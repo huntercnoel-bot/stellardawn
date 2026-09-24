@@ -1,0 +1,77 @@
+{
+  "models": [
+    {
+      "key": "96gb",
+      "label": "Mac Studio M3 Ultra · 96GB · 1TB",
+      "short": "96GB",
+      "part": "MU973LL/A",
+      "note": "Standard M3 Ultra model (28‑core CPU, 60‑core GPU). Stocked in Apple Stores.",
+      "retailers": [
+        { "name": "Apple", "url": "https://www.apple.com/shop/buy-mac/mac-studio" },
+        { "name": "Best Buy", "url": "https://www.bestbuy.com/site/searchpage.jsp?st=MU973LL%2FA" },
+        { "name": "Micro Center", "url": "https://www.microcenter.com/search/search_results.aspx?Ntt=MU973LL%2FA" },
+        { "name": "B&H", "url": "https://www.bhphotovideo.com/c/search?q=MU973LL%2FA" },
+        { "name": "Adorama", "url": "https://www.adorama.com/l/?searchinfo=MU973LL%2FA" },
+        { "name": "Amazon", "url": "https://www.amazon.com/s?k=MU973LL%2FA" }
+      ]
+    },
+    {
+      "key": "256gb",
+      "label": "Mac Studio M3 Ultra · 256GB",
+      "short": "256GB",
+      "part": null,
+      "note": "Build‑to‑order only, and Apple stopped offering the 256GB option in May 2026. Apple Stores do not stock it, so look for leftover, open‑box or refurbished units at the retailers below.",
+      "retailers": [
+        { "name": "Apple Refurbished", "url": "https://www.apple.com/shop/refurbished/mac/mac-studio" },
+        { "name": "Best Buy", "url": "https://www.bestbuy.com/site/searchpage.jsp?st=mac+studio+m3+ultra+256gb" },
+        { "name": "Micro Center", "url": "https://www.microcenter.com/search/search_results.aspx?Ntt=mac+studio+m3+ultra+256gb" },
+        { "name": "B&H", "url": "https://www.bhphotovideo.com/c/search?q=mac%20studio%20m3%20ultra%20256gb" },
+        { "name": "Adorama", "url": "https://www.adorama.com/l/?searchinfo=mac%20studio%20m3%20ultra%20256gb" },
+        { "name": "Amazon", "url": "https://www.amazon.com/s?k=mac+studio+m3+ultra+256gb" }
+      ]
+    }
+  ],
+  "cities": [
+    { "name": "New York", "state": "NY", "zip": "10153" },
+    { "name": "Los Angeles", "state": "CA", "zip": "90014" },
+    { "name": "Chicago", "state": "IL", "zip": "60611" },
+    { "name": "Houston", "state": "TX", "zip": "77056" },
+    { "name": "Phoenix", "state": "AZ", "zip": "85016" },
+    { "name": "Philadelphia", "state": "PA", "zip": "19103" },
+    { "name": "San Antonio", "state": "TX", "zip": "78216" },
+    { "name": "San Diego", "state": "CA", "zip": "92122" },
+    { "name": "Dallas", "state": "TX", "zip": "75225" },
+    { "name": "San Jose", "state": "CA", "zip": "95128" },
+    { "name": "Austin", "state": "TX", "zip": "78758" },
+    { "name": "Jacksonville", "state": "FL", "zip": "32256" },
+    { "name": "Columbus", "state": "OH", "zip": "43219" },
+    { "name": "Charlotte", "state": "NC", "zip": "28211" },
+    { "name": "Indianapolis", "state": "IN", "zip": "46240" },
+    { "name": "San Francisco", "state": "CA", "zip": "94108" },
+    { "name": "Seattle", "state": "WA", "zip": "98101" },
+    { "name": "Denver", "state": "CO", "zip": "80206" },
+    { "name": "Washington", "state": "DC", "zip": "20001" },
+    { "name": "Boston", "state": "MA", "zip": "02116" },
+    { "name": "Nashville", "state": "TN", "zip": "37215" },
+    { "name": "Portland", "state": "OR", "zip": "97205" },
+    { "name": "Las Vegas", "state": "NV", "zip": "89109" },
+    { "name": "Detroit", "state": "MI", "zip": "48084" },
+    { "name": "Atlanta", "state": "GA", "zip": "30326" },
+    { "name": "Miami", "state": "FL", "zip": "33131" },
+    { "name": "Minneapolis", "state": "MN", "zip": "55425" },
+    { "name": "Orlando", "state": "FL", "zip": "32819" },
+    { "name": "Tampa", "state": "FL", "zip": "33607" },
+    { "name": "St. Louis", "state": "MO", "zip": "63131" },
+    { "name": "Baltimore", "state": "MD", "zip": "21204" },
+    { "name": "Salt Lake City", "state": "UT", "zip": "84101" },
+    { "name": "Pittsburgh", "state": "PA", "zip": "15237" },
+    { "name": "Kansas City", "state": "MO", "zip": "64112" },
+    { "name": "Raleigh", "state": "NC", "zip": "27612" },
+    { "name": "Sacramento", "state": "CA", "zip": "95825" },
+    { "name": "Cleveland", "state": "OH", "zip": "44122" },
+    { "name": "Cincinnati", "state": "OH", "zip": "45236" },
+    { "name": "Milwaukee", "state": "WI", "zip": "53226" },
+    { "name": "New Orleans", "state": "LA", "zip": "70130" },
+    { "name": "Honolulu", "state": "HI", "zip": "96814" }
+  ]
+}

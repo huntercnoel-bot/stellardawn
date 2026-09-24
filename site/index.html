@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mac Studio Finder</title>
+<meta name="description" content="Apple Store pickup availability for Mac Studio 96GB and 256GB across major US cities.">
+<style>
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --text: #16181d; --muted: #5f6673; --line: #e3e6eb;
+  --accent: #0a66d8; --ok: #127a3a; --ok-bg: #e3f5ea; --no: #6b7280; --no-bg: #eef0f3;
+  --warn: #8a5a00; --warn-bg: #fdf1d8; --err: #b42318; --err-bg: #fde8e7;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1115; --panel: #171a21; --text: #e8eaee; --muted: #9aa2af; --line: #2a2f39;
+    --accent: #5aa2ff; --ok: #5fd68b; --ok-bg: #133321; --no: #9aa2af; --no-bg: #232833;
+    --warn: #f3c460; --warn-bg: #3a2c0c; --err: #ff8a80; --err-bg: #3b1715;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1115; --panel: #171a21; --text: #e8eaee; --muted: #9aa2af; --line: #2a2f39;
+  --accent: #5aa2ff; --ok: #5fd68b; --ok-bg: #133321; --no: #9aa2af; --no-bg: #232833;
+  --warn: #f3c460; --warn-bg: #3a2c0c; --err: #ff8a80; --err-bg: #3b1715;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+a { color: var(--accent); }
+.wrap { max-width: 1040px; margin: 0 auto; padding: 24px 16px 64px; }
+header h1 { margin: 0 0 4px; font-size: 26px; letter-spacing: -0.01em; }
+header p { margin: 0; color: var(--muted); }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 20px 0; }
+.stat { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+.stat b { display: block; font-size: 24px; font-variant-numeric: tabular-nums; }
+.stat span { color: var(--muted); font-size: 13px; }
+.models { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.model { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+.model h2 { margin: 0 0 4px; font-size: 16px; }
+.model p { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
+.model .part { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: var(--muted); }
+.links { display: flex; flex-wrap: wrap; gap: 6px; }
+.links a { font-size: 13px; text-decoration: none; border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; }
+.links a:hover { border-color: var(--accent); }
+.controls { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; margin: 8px 0 16px; }
+.controls input[type=search] {
+  flex: 1 1 220px; min-width: 0; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--panel); color: var(--text); font: inherit;
+}
+.controls label { display: flex; gap: 6px; align-items: center; color: var(--muted); font-size: 14px; }
+.notice { border-radius: 10px; padding: 12px 14px; margin-bottom: 16px; font-size: 14px; }
+.notice.warn { background: var(--warn-bg); color: var(--warn); }
+.notice.err { background: var(--err-bg); color: var(--err); }
+.city { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; margin-bottom: 12px; overflow: hidden; }
+.city > summary {
+  list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+  gap: 12px; padding: 12px 14px;
+}
+.city > summary::-webkit-details-marker { display: none; }
+.city > summary h3 { margin: 0; font-size: 16px; }
+.city > summary small { color: var(--muted); font-weight: normal; margin-left: 6px; }
+.city table { width: 100%; border-collapse: collapse; }
+.city th, .city td { padding: 8px 14px; border-top: 1px solid var(--line); text-align: left; font-size: 14px; vertical-align: top; }
+.city th { color: var(--muted); font-weight: 500; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+.city td.store small { display: block; color: var(--muted); }
+.pill { display: inline-block; border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.pill.available { background: var(--ok-bg); color: var(--ok); }
+.pill.unavailable, .pill.ineligible, .pill.unknown, .pill.not_stocked { background: var(--no-bg); color: var(--no); }
+.pill.error { background: var(--err-bg); color: var(--err); }
+.quote { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+.city .msg { padding: 10px 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+.empty { color: var(--muted); text-align: center; padding: 32px 0; }
+footer { color: var(--muted); font-size: 13px; margin-top: 32px; }
+@media (max-width: 560px) {
+  .city th.hide-sm, .city td.hide-sm { display: none; }
+  .city th, .city td { padding: 8px 10px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Mac Studio Finder</h1>
+    <p>Apple Store pickup stock for the 96GB and 256GB Mac Studio near major US cities.
+      <span id="updated"></span></p>
+  </header>
+
+  <div id="notice"></div>
+  <section class="stats" id="stats"></section>
+  <section class="models" id="models"></section>
+
+  <div class="controls">
+    <input type="search" id="q" placeholder="Filter by city, state or store…" aria-label="Filter">
+    <label><input type="checkbox" id="onlyStock"> In stock only</label>
+  </div>
+
+  <main id="cities"></main>
+
+  <footer>
+    Data comes from Apple's store‑pickup service and refreshes about every 30 minutes, so check
+    with the store before you go. Not affiliated with Apple.
+  </footer>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const LABELS = { available: "In stock", unavailable: "Out of stock", ineligible: "Not sold here", unknown: "Unknown", not_stocked: "Not in stores" };
+let data = null;
+
+function load() {
+  return fetch("inventory.json", { cache: "no-store" })
+    .then((r) => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); });
+}
+
+function timeAgo(iso) {
+  const mins = Math.round((Date.now() - new Date(iso)) / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return mins + " min ago";
+  const hrs = Math.round(mins / 60);
+  return hrs < 48 ? hrs + " hr ago" : Math.round(hrs / 24) + " days ago";
+}
+
+function inStock(store) {
+  return Object.values(store.availability).some((a) => a.status === "available");
+}
+
+function renderHeader() {
+  const updated = new Date(data.updated);
+  $("updated").textContent = "Last checked " + timeAgo(data.updated) + " (" + updated.toLocaleString() + ").";
+  const stale = (Date.now() - updated) / 3600000 > 3;
+  const failed = data.cities.filter((c) => c.error).length;
+  let notice = "";
+  if (stale) notice += `<div class="notice warn">This data is more than 3 hours old. The scheduled check may have stopped; see the Actions tab on GitHub.</div>`;
+  if (failed) notice += `<div class="notice err">${failed} of ${data.cities.length} cities couldn't be checked in the last run.</div>`;
+  $("notice").innerHTML = notice;
+
+  // Stats count each store once, even when it's near more than one city.
+  const unique = new Map();
+  data.cities.forEach((c) => c.stores.forEach((s) => unique.set(s.id, s)));
+  const stores = [...unique.values()];
+  const cityHits = data.cities.filter((c) => c.stores.some(inStock)).length;
+  const stats = [[stores.length, "Apple Stores checked"], [cityHits, "Cities with stock"]];
+  data.models.forEach((m) => {
+    if (!m.part) return;
+    stats.push([stores.filter((s) => s.availability[m.key]?.status === "available").length, "Stores with " + m.short]);
+  });
+  $("stats").innerHTML = stats.map(([n, l]) => `<div class="stat"><b>${n}</b><span>${esc(l)}</span></div>`).join("");
+}
+
+function renderModels(models) {
+  $("models").innerHTML = models.map((m) => `
+    <div class="model">
+      <h2>${esc(m.label)}</h2>
+      <p>${esc(m.note)}${m.part ? ` <span class="part">${esc(m.part)}</span>` : ""}</p>
+      <div class="links">${m.retailers.map((r) => `<a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.name)} ↗</a>`).join("")}</div>
+    </div>`).join("");
+}
+
+function renderCities() {
+  const q = $("q").value.trim().toLowerCase();
+  const only = $("onlyStock").checked;
+  const html = [];
+  data.cities.forEach((city) => {
+    let stores = city.stores;
+    const cityMatch = (city.name + " " + city.state + " " + city.zip).toLowerCase().includes(q);
+    if (q && !cityMatch) stores = stores.filter((s) => (s.name + " " + s.city + " " + s.state).toLowerCase().includes(q));
+    if (only) stores = stores.filter(inStock);
+    if ((q && !cityMatch && !stores.length) || (only && !stores.length)) return;
+
+    const hits = city.stores.filter(inStock).length;
+    const badge = city.error ? `<span class="pill error">Check failed</span>`
+      : hits ? `<span class="pill available">${hits} in stock</span>`
+      : `<span class="pill unavailable">None in stock</span>`;
+    const open = hits > 0 || q ? " open" : "";
+    const cols = data.models.map((m) => `<th>${esc(m.short)}</th>`).join("");
+    const rows = stores.map((s) => `
+      <tr>
+        <td class="store">${esc(s.name)}<small>${esc(s.city)}, ${esc(s.state)}</small></td>
+        <td class="hide-sm">${esc(s.distance)}</td>
+        ${data.models.map((m) => {
+          const a = s.availability[m.key] || { status: "unknown" };
+          return `<td><span class="pill ${esc(a.status)}">${esc(LABELS[a.status] || a.status)}</span>${a.quote ? `<span class="quote">${esc(a.quote)}</span>` : ""}</td>`;
+        }).join("")}
+      </tr>`).join("");
+    const body = city.error ? `<div class="msg">Couldn't reach Apple for this city: ${esc(city.error)}</div>`
+      : stores.length ? `<table><thead><tr><th>Store</th><th class="hide-sm">Distance</th>${cols}</tr></thead><tbody>${rows}</tbody></table>`
+      : `<div class="msg">No Apple Stores returned near ZIP ${esc(city.zip)}.</div>`;
+    html.push(`<details class="city"${open}>
+      <summary><h3>${esc(city.name)}, ${esc(city.state)}<small>${city.stores.length} stores</small></h3>${badge}</summary>
+      ${body}
+    </details>`);
+  });
+  $("cities").innerHTML = html.length ? html.join("") : `<p class="empty">No cities match.</p>`;
+}
+
+function renderNoData(err) {
+  $("notice").innerHTML = `<div class="notice warn">No inventory data yet (${esc(err.message)}). The GitHub Action
+    publishes <code>inventory.json</code> next to this page; run “Check inventory” from the Actions tab to generate it.
+    Opened as a local file? Serve the folder instead, e.g. <code>python3 -m http.server -d site</code>.</div>`;
+}
+
+$("q").addEventListener("input", () => data && renderCities());
+$("onlyStock").addEventListener("change", () => data && renderCities());
+
+load()
+  .then((d) => { data = d; renderHeader(); renderModels(d.models); renderCities(); })
+  .catch(renderNoData);
+</script>
+</body>
+</html>
