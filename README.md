@@ -16,6 +16,17 @@ per area for the standard models, plus a rotating slice of areas for the 256GB s
 Results for setups or areas not reached in a run carry forward from the previous run
 (up to an hour) and are labeled with their age on the page.
 
+## Micro Center and Best Buy
+
+`scripts/check_retailers.py` runs as a separate job, on its own runner:
+
+- **Micro Center:** finds product IDs by searching for the part number (and for "256GB"
+  M5 Ultra listings), then reads each of its 31 stores' stock from the product page loaded
+  with `?storeid=<id>` (the `.inventoryCnt` element, e.g. "5 NEW IN STOCK").
+- **Best Buy:** with a `BESTBUY_API_KEY` repo secret (free at developer.bestbuy.com) it
+  uses the official Stores API for per-store pickup; without one it reports the
+  bestbuy.com button state (available / sold out) near major cities.
+
 ## How it works
 
 1. `.github/workflows/check-inventory.yml` runs every 5 minutes (GitHub may delay scheduled runs a little), on pushes to `main`, and on demand.
