@@ -14,8 +14,8 @@ element ("5 NEW IN STOCK", "SOLD OUT"). Product IDs are found by searching Micro
 for the Apple part number (and for "256GB" M5 Ultra listings).
 
 Best Buy: uses the official Products/Stores API when BESTBUY_API_KEY is set (free key from
-developer.bestbuy.com). Without a key it tries the button-state endpoint bestbuy.com's
-own pages call, which reports whether a SKU can be bought or picked up near a ZIP.
+developer.bestbuy.com). Its old no-key endpoint is gone, so without a key the script only
+records what the product page shows in a real browser (retailers-debug.json).
 """
 import argparse
 import html as htmllib
@@ -85,6 +85,8 @@ class Browser:
             user_agent=ci.HEADERS["User-Agent"], locale="en-US", viewport={"width": 1280, "height": 900})
         self._ctx.route("**/*", lambda route: route.abort()
                         if route.request.resource_type in ("image", "font", "media") else route.continue_())
+        # Best Buy shows a "Select your Country" page unless this cookie says the shopper is in the US.
+        self._ctx.add_cookies([{"name": "intl_splash", "value": "false", "domain": ".bestbuy.com", "path": "/"}])
         self.page = self._ctx.new_page()
 
     def get(self, url, params=None, wait_s=25):
@@ -214,31 +216,6 @@ def bb_official(key, stamp):
     return list(stores.values())
 
 
-def bb_button_state(stamp):
-    """No-key fallback: bestbuy.com's button-state endpoint for each SKU near a few ZIPs."""
-    results = {}
-    headers = {**ci.HEADERS, "Referer": "https://www.bestbuy.com/", "Origin": "https://www.bestbuy.com"}
-    for model, skus in BB_SKUS.items():
-        for sku in skus:
-            for zip_code in BB_ZIPS[:6]:
-                attempts = [
-                    ("button-state", "https://www.bestbuy.com/button-state/api/v5/button-state",
-                     {"skus": sku, "conditions": "NONE", "destinationZipCode": zip_code,
-                      "storeId": "", "context": "cyp", "addAll": "false"}),
-                ]
-                for name, url, params in attempts:
-                    try:
-                        text = get(url, params, headers)
-                        debug.setdefault("bb_raw", {}).setdefault(f"{name} {sku} {zip_code}", text[:1500])
-                        data = json.loads(text)
-                        states = [b.get("buttonState") for b in data.get("buttonStateResponseInfos", [])]
-                        results.setdefault(model, {})[zip_code] = states
-                    except Exception as exc:
-                        debug.setdefault("bb_errors", []).append(f"{name} {sku} {zip_code}: {exc}")
-                ci.pause()
-    return results
-
-
 def bb_page_probe(browser):
     """Diagnostics: what bestbuy.com's product page says (pickup/sold out) in a real browser."""
     for model, skus in BB_SKUS.items():
@@ -258,16 +235,18 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--out", default=str(ci.ROOT / "site" / "retailers.json"))
     ap.add_argument("--previous")
-    ap.add_argument("--skip-microcenter", action="store_true")
+    ap.add_argument("--microcenter", action="store_true", default=os.environ.get("MICROCENTER") == "1",
+                    help="also check Micro Center (off by default: its Cloudflare challenge blocks "
+                         "cloud servers, so from CI it only burns time)")
     args = ap.parse_args()
     stamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
     print("HTTP client:", "curl_cffi (Chrome fingerprint)" if ci.cffi_requests else "urllib")
 
     snapshot = {"updated": stamp, "retailers": {}}
-    browser = open_browser()
+    browser = open_browser()  # Micro Center (if enabled) and the Best Buy page probe
     fetch = browser.get if browser else get
     try:
-        if not args.skip_microcenter:
+        if args.microcenter:
             mc_stores, mc_products = check_microcenter(stamp, fetch)
             snapshot["retailers"]["Micro Center"] = {"stores": mc_stores, "products": mc_products}
         if browser:
@@ -279,11 +258,9 @@ def main():
     bb_key = os.environ.get("BESTBUY_API_KEY", "").strip()
     if bb_key:
         snapshot["retailers"]["Best Buy"] = {"stores": bb_official(bb_key, stamp), "source": "api"}
+        print(f"Best Buy: {len(snapshot['retailers']['Best Buy']['stores'])} stores with stock")
     else:
-        states = bb_button_state(stamp)
-        snapshot["retailers"]["Best Buy"] = {"stores": [], "source": "button-state", "button_states": states}
-    print("Best Buy:", snapshot["retailers"]["Best Buy"].get("button_states") or
-          f"{len(snapshot['retailers']['Best Buy']['stores'])} stores")
+        print("Best Buy: no BESTBUY_API_KEY secret, so only the product-page probe ran (see retailers-debug.json)")
 
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
