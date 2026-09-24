@@ -62,7 +62,8 @@ def pickup_report(parts, referer):
             out[name] = {
                 "store_count": len(stores),
                 "first_stores": [
-                    {k: s.get(k) for k in ("storeNumber", "storeName", "partsAvailability")}
+                    {k: s.get(k) for k in ("storeNumber", "storeName", "hoursUrl", "reservationUrl",
+                                         "makeReservationUrl", "directionsUrl", "partsAvailability")}
                     for s in stores[:2]
                 ],
                 "top_level_keys": sorted(data.get("body", {}).keys()) if isinstance(data, dict) else [],

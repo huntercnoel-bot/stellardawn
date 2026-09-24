@@ -68,9 +68,9 @@ PAGE_HEADERS = {
     "Accept-Language": "en-US,en;q=0.9",
 }
 DEFAULT_REFERER = "https://www.apple.com/shop/buy-mac/mac-studio"
-DELAY_SECONDS = (0.8, 1.6)
+DELAY_SECONDS = (1.2, 2.4)
 RETRIES = 2
-WORKERS = 4
+WORKERS = 2
 TIMEOUT_SECONDS = 15
 # Stop early when Apple refuses this many requests in a row, so a blocked run ends fast.
 MAX_CONSECUTIVE_FAILURES = 8
@@ -125,7 +125,7 @@ def http_get(url, params=None, headers=None):
         except Exception as exc:  # network errors from either client
             last_error = str(exc)
         if attempt < RETRIES - 1:
-            time.sleep(2 + random.random() * 2)
+            time.sleep(6 + random.random() * 6)  # Apple's 541 refusals ease off after a pause
     _failures += 1
     raise RuntimeError(last_error)
 
@@ -267,12 +267,21 @@ def parse_stores(payload, model):
     return rows
 
 
-def request_groups(model):
-    """Standard parts share one request; each build-to-order variant (same product code,
-    different options) needs its own, since Apple keys the answer by product code."""
-    variants = [v for v in model["variants"] if v.get("part")]
-    standard = [v for v in variants if not v.get("options")]
-    return ([standard] if standard else []) + [[v] for v in variants if v.get("options")]
+def request_plan(models):
+    """Requests for one city: every standard part (across all models) shares a single
+    request, and each build-to-order variant gets its own, since Apple keys the answer
+    by product code. Returns [(variants, [(model, its variants in this request)])]."""
+    standard, plan = [], []
+    for model in models:
+        std = [v for v in model["variants"] if v.get("part") and not v.get("options")]
+        if std:
+            standard.append((model, std))
+        for v in model["variants"]:
+            if v.get("part") and v.get("options"):
+                plan.append(([v], [(model, [v])]))
+    if standard:
+        plan.insert(0, ([v for _, vs in standard for v in vs], standard))
+    return plan
 
 
 def merge_rows(into, rows, key):
@@ -290,25 +299,27 @@ def merge_rows(into, rows, key):
 
 
 def check_city(city, models):
-    """Query each model separately so one bad part number can't break the others."""
-    stores, errors = {}, {}
-    for model in models:
-        groups = request_groups(model)
-        if not groups:
-            errors[model["key"]] = "no part numbers to check"
-            continue
-        failed = []
-        for group in groups:
-            try:
-                referer = group[0].get("page") or model.get("apple_url")
-                sub = {**model, "variants": group}
-                merge_rows(stores, parse_stores(fetch_pickup(group, city["zip"], referer), sub), model["key"])
-            except Exception as exc:  # the dashboard shows per-city, per-model errors
-                failed.append(str(exc))
-            pause()
-        if failed and len(failed) == len(groups):
-            errors[model["key"]] = failed[0]
-    for store in stores.values():  # a model whose requests all failed for this city
+    """Check every model near one city. A failed request only affects the models in it."""
+    stores, failed, tried = {}, {}, {}
+    for variants, members in request_plan(models):
+        try:
+            referer = next((v["page"] for v in variants if v.get("page")), None) or members[0][0].get("apple_url")
+            data = fetch_pickup(variants, city["zip"], referer)
+            for model, vs in members:
+                merge_rows(stores, parse_stores(data, {**model, "variants": vs}), model["key"])
+        except Exception as exc:  # the dashboard shows per-city, per-model errors
+            for model, _ in members:
+                failed.setdefault(model["key"], str(exc))
+        for model, _ in members:
+            tried[model["key"]] = tried.get(model["key"], 0) + 1
+        pause()
+    # A model is in error only when every request for it failed.
+    succeeded = {k for s in stores.values() for k in s["availability"]}
+    errors = {k: msg for k, msg in failed.items() if k not in succeeded}
+    for m in models:
+        if m["key"] not in tried:
+            errors[m["key"]] = "no part numbers to check"
+    for store in stores.values():
         for key, msg in errors.items():
             store["availability"].setdefault(key, {"status": "error", "quote": msg, "in_stock": []})
         for model in models:  # a model Apple didn't mention for this store
