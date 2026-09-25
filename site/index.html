@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Mac Studio Finder</title>
-<meta name="description" content="Live Apple Store pickup stock for the M5 Ultra Mac Studio, 96GB and 256GB, across major US cities.">
+<meta name="description" content="Live Apple Store pickup stock for the Mac Studio (M5 Ultra 96GB and 256GB, M5 Max 64GB and 128GB) across the US.">
 <style>
 :root {
   --bg: #f4f5f7; --panel: #ffffff; --panel-2: #f9fafb; --text: #15171c; --muted: #636b78; --line: #e2e5ea;
@@ -140,7 +140,7 @@ header p { margin: 4px 0 0; color: var(--muted); }
 .pill.error { background: var(--err-bg); color: var(--err); }
 .stores { border-top: 1px solid var(--line); }
 .store {
-  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 16px; align-items: center;
+  display: grid; grid-template-columns: minmax(170px, 1fr) minmax(0, 2.4fr); gap: 8px 16px; align-items: center;
   padding: 12px 14px; border-top: 1px solid var(--line);
 }
 .store:first-child { border-top: 0; }
@@ -201,7 +201,7 @@ footer { color: var(--muted); font-size: 13px; }
   <header>
     <div>
       <h1>Mac Studio Finder</h1>
-      <p>Live Apple Store pickup stock for the M5 Ultra Mac Studio, with the M5 Max as a reference.</p>
+      <p>Live Apple Store pickup stock for the Mac Studio: M5 Ultra 96GB and 256GB, M5 Max 64GB and 128GB.</p>
     </div>
     <span class="live" id="live"><i></i><span id="updated">Loading…</span></span>
   </header>

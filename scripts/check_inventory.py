@@ -74,7 +74,7 @@ WORKERS = 1
 # Build-to-order setups are checked in 1/BTO_SLICES of cities per run (rotating).
 BTO_SLICES = 3
 # Results for setups not checked this run stay on the page this long.
-CARRY_MINUTES = 60
+CARRY_MINUTES = 90
 # Stop starting new cities after this long so the run always finishes and publishes.
 RUN_BUDGET_SECONDS = 300
 TIMEOUT_SECONDS = 15
