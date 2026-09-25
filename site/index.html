@@ -467,7 +467,7 @@ function cityCard(city, models, q, featured = false) {
     <div class="city-head">
       <button class="star" type="button" data-pin="${esc(key)}" aria-pressed="${pinned}" aria-label="${pinned ? "Unpin" : "Pin"} ${esc(city.name)}">${pinned ? "★" : "☆"}</button>
       <button class="city-toggle" type="button" data-toggle="${esc(key)}" aria-expanded="${!!open}">
-        <h3>${esc(city.name)}, ${esc(city.state)}<small>${city.stores.length} ${city.stores.length === 1 ? "store" : "stores"}</small>${cityHistory(city, models)}</h3>
+        <h3>${esc(city.name)}, ${esc(city.state)}<small>${city.stores.length} ${city.stores.length === 1 ? "store" : "stores"}${featured ? ` · distances from ${esc(city.zip)}` : ""}</small>${cityHistory(city, models)}</h3>
         <span class="badges">${badges}<span class="chev" aria-hidden="true">›</span></span>
       </button>
     </div>
