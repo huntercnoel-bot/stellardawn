@@ -245,6 +245,7 @@ const store = {
 const state = {
   data: null,
   retailers: null,
+  version: "",
   history: null,
   moreActivity: false,
   showAllRetail: false,
@@ -514,7 +515,22 @@ function renderAll() {
   renderHeader(); renderFeatured(); renderModels(); renderActivity(); renderRetailers(); renderControls(); renderCities();
 }
 
+// Reload the page itself when a newer version of the site is published, so an open tab
+// never keeps showing an old layout.
+function checkVersion() {
+  return fetch("version.txt?t=" + Date.now(), { cache: "no-store" })
+    .then((r) => (r.ok ? r.text() : ""))
+    .then((v) => {
+      v = v.trim();
+      if (!v) return;
+      if (state.version && v !== state.version) location.reload();
+      state.version = v;
+    })
+    .catch(() => {});
+}
+
 function load(first) {
+  checkVersion();
   return fetch("inventory.json?t=" + Date.now(), { cache: "no-store" })
     .then((r) => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
     .then((d) => {
