@@ -172,6 +172,10 @@ a.buy:hover { background: var(--ok); color: var(--panel); }
 .cell { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 2px; }
 .seen { font-size: 11px; color: var(--muted); padding-right: 4px; }
 .city-seen { display: block; font-size: 12px; font-weight: 400; color: var(--ok); margin-top: 2px; }
+.featured .city { border: 2px solid var(--accent); }
+.featured .city-toggle { cursor: default; }
+.featured .chev, .featured .star { display: none; }
+.featured .city-head { padding-left: 12px; }
 .retailers { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
 .retail-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 16px 10px; }
 .retail-head h2 { margin: 0; font-size: 17px; }
@@ -207,6 +211,7 @@ footer { color: var(--muted); font-size: 13px; }
   </header>
 
   <div id="notice" hidden></div>
+  <section class="featured" id="featured" aria-label="Featured area" hidden></section>
   <section class="models" id="models" aria-label="Models"></section>
   <section class="activity" id="activity" aria-label="Recent restocks" hidden></section>
   <section class="retailers" id="retailers" aria-label="Micro Center and Best Buy" hidden></section>
@@ -420,17 +425,18 @@ function stockCell(s, m) {
       title="Open this Mac Studio on apple.com">${esc(m.short)} in stock ↗<small>${esc(m.variants.length > 1 ? label : (since || a.quote || "Pick up at this store"))}</small></a>`).join("");
 }
 
-function cityCard(city, models, q) {
+function cityCard(city, models, q, featured = false) {
   const key = cityKey(city);
   let stores = city.stores;
   const cityMatch = !q || (city.name + " " + city.state + " " + city.zip).toLowerCase().includes(q);
   if (!cityMatch) stores = stores.filter((s) => (s.name + " " + s.city + " " + s.state).toLowerCase().includes(q));
-  if (state.onlyStock) stores = stores.filter((s) => isIn(s, models));
-  if ((!cityMatch && !stores.length) || (state.onlyStock && !stores.length)) return "";
+  const onlyStock = state.onlyStock && !featured;
+  if (onlyStock) stores = stores.filter((s) => isIn(s, models));
+  if ((!cityMatch && !stores.length) || (onlyStock && !stores.length)) return "";
 
   const hits = city.stores.filter((s) => isIn(s, models));
   const errs = cityErrors(city);
-  const open = state.open.has(key) || (q && !cityMatch);
+  const open = featured || state.open.has(key) || (q && !cityMatch);
   const badges = models.map((m) => {
     const n = city.stores.filter((s) => s.availability[m.key]?.status === "available").length;
     return n ? `<span class="pill available">${esc(m.short)} · ${n} in stock</span>` : "";
@@ -465,11 +471,19 @@ function cityCard(city, models, q) {
   </section>`;
 }
 
+// Priority areas (config "priority": true, e.g. Miami) sit at the top with every model shown.
+function renderFeatured() {
+  const box = $("featured");
+  const list = state.data.cities.filter((c) => c.priority);
+  box.hidden = !list.length;
+  box.innerHTML = list.map((c) => cityCard(c, state.data.models, "", true)).join("");
+}
+
 function renderCities() {
   const q = $("q").value.trim().toLowerCase();
   const models = visibleModels();
   const hasStock = (c) => c.stores.some((s) => isIn(s, models));
-  const cities = state.data.cities;
+  const cities = state.data.cities.filter((c) => !c.priority);
   const groups = [
     ["Your cities", cities.filter((c) => state.pinned.has(cityKey(c)))],
     ["In stock now", cities.filter((c) => !state.pinned.has(cityKey(c)) && hasStock(c))],
@@ -494,7 +508,7 @@ function renderControls() {
 }
 
 function renderAll() {
-  renderHeader(); renderModels(); renderActivity(); renderRetailers(); renderControls(); renderCities();
+  renderHeader(); renderFeatured(); renderModels(); renderActivity(); renderRetailers(); renderControls(); renderCities();
 }
 
 function load(first) {
@@ -502,7 +516,10 @@ function load(first) {
     .then((r) => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
     .then((d) => {
       // Stores are listed once at the top level; areas refer to them by id.
-      if (d.stores) d.cities.forEach((c) => { c.stores = c.stores.map((id) => d.stores[id]).filter(Boolean); });
+      if (d.stores) d.cities.forEach((c) => {
+        c.stores = c.stores.filter((id) => d.stores[id])
+          .map((id) => ({ ...d.stores[id], distance: c.distances?.[id] ?? d.stores[id].distance }));
+      });
       state.data = d;
       return fetch("retailers.json?t=" + Date.now(), { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null)).catch(() => null)
