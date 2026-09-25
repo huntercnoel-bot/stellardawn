@@ -54,6 +54,52 @@
       ]
     },
     {
+      "key": "64gb",
+      "label": "Mac Studio M5 Max · 64GB",
+      "short": "64GB",
+      "note": "18‑core CPU, 40‑core GPU, 64GB. Build‑to‑order; the 512GB and 1TB setups are checked in rotation across stores.",
+      "apple_url": "https://www.apple.com/shop/buy-mac/mac-studio/m5-max-chip-18-core-cpu-40-core-gpu-64gb-memory-512gb-storage",
+      "variants": [
+        {
+          "label": "18‑core CPU / 40‑core GPU · 512GB",
+          "page": "https://www.apple.com/shop/buy-mac/mac-studio/m5-max-chip-18-core-cpu-40-core-gpu-64gb-memory-512gb-storage"
+        },
+        {
+          "label": "18‑core CPU / 40‑core GPU · 1TB",
+          "page": "https://www.apple.com/shop/buy-mac/mac-studio/m5-max-chip-18-core-cpu-40-core-gpu-64gb-memory-1tb-storage"
+        }
+      ],
+      "retailers": [
+        { "name": "Best Buy", "url": "https://www.bestbuy.com/site/searchpage.jsp?st=mac+studio+m5+max+64gb" },
+        { "name": "Micro Center", "url": "https://www.microcenter.com/search/search_results.aspx?Ntt=mac+studio+m5+max+64gb" },
+        { "name": "B&H", "url": "https://www.bhphotovideo.com/c/search?q=mac%20studio%20m5%20max%2064gb" },
+        { "name": "Amazon", "url": "https://www.amazon.com/s?k=mac+studio+m5+max+64gb" }
+      ]
+    },
+    {
+      "key": "128gb",
+      "label": "Mac Studio M5 Max · 128GB",
+      "short": "128GB",
+      "note": "18‑core CPU, 40‑core GPU, 128GB. Build‑to‑order; the 512GB and 1TB setups are checked in rotation across stores.",
+      "apple_url": "https://www.apple.com/shop/buy-mac/mac-studio/m5-max-chip-18-core-cpu-40-core-gpu-128gb-memory-512gb-storage",
+      "variants": [
+        {
+          "label": "18‑core CPU / 40‑core GPU · 512GB",
+          "page": "https://www.apple.com/shop/buy-mac/mac-studio/m5-max-chip-18-core-cpu-40-core-gpu-128gb-memory-512gb-storage"
+        },
+        {
+          "label": "18‑core CPU / 40‑core GPU · 1TB",
+          "page": "https://www.apple.com/shop/buy-mac/mac-studio/m5-max-chip-18-core-cpu-40-core-gpu-128gb-memory-1tb-storage"
+        }
+      ],
+      "retailers": [
+        { "name": "Best Buy", "url": "https://www.bestbuy.com/site/searchpage.jsp?st=mac+studio+m5+max+128gb" },
+        { "name": "Micro Center", "url": "https://www.microcenter.com/search/search_results.aspx?Ntt=mac+studio+m5+max+128gb" },
+        { "name": "B&H", "url": "https://www.bhphotovideo.com/c/search?q=mac%20studio%20m5%20max%20128gb" },
+        { "name": "Amazon", "url": "https://www.amazon.com/s?k=mac+studio+m5+max+128gb" }
+      ]
+    },
+    {
       "key": "m5max36",
       "reference": true,
       "label": "Mac Studio M5 Max · 36GB",

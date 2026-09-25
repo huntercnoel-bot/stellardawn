@@ -228,7 +228,7 @@ class FindPartTest(unittest.TestCase):
 class ConfigTest(unittest.TestCase):
     def test_config_is_valid(self):
         config = json.loads(check_inventory.CONFIG.read_text())
-        self.assertEqual({m["key"] for m in config["models"]}, {"96gb", "256gb", "m5max36"})
+        self.assertEqual({m["key"] for m in config["models"]}, {"96gb", "256gb", "64gb", "128gb", "m5max36"})
         for model in config["models"]:
             self.assertTrue(model["apple_url"].startswith("https://www.apple.com/"))
             for v in model["variants"]:
