@@ -56,7 +56,8 @@ checked areas go first next run.
 Edit `scripts/config.json`:
 
 - **Cities:** add `{ "name", "state", "zip" }`. Apple returns the stores near that ZIP, so
-  pick one near the city's Apple Store.
+  pick one near the city's Apple Store. Add `"priority": true` (as Miami has) to check every
+  build-to-order setup there every run and show that area at the top of the page.
 - **Models / setups:** each model has `variants`. Give a variant its `part` number, or
   just its Apple Store `page` URL and the checker reads the part number from it.
 

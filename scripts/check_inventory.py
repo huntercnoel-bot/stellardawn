@@ -298,12 +298,15 @@ def summarize(avail):
     return avail
 
 
-def city_models(models, city_index, run_index, slices):
+def city_models(models, city_index, run_index, slices, priority=False):
     """This city's share of build-to-order work for this run.
 
     Standard parts are checked everywhere every run. Build-to-order setups cost one
     request each, so each run only a 1/`slices` share of cities checks them, one setup
-    per city, rotating so every city cycles through every setup."""
+    per city, rotating so every city cycles through every setup. Priority areas (config
+    "priority": true) check every setup every run."""
+    if priority:
+        return models
     out = []
     for model in models:
         bto = [v for v in model["variants"] if v.get("part") and v.get("options")]
@@ -380,10 +383,13 @@ def pack(snapshot):
     stores = {}
     for city in snapshot["cities"]:
         ids = []
+        distances = city.setdefault("distances", {})
         for st in city["stores"]:
             if isinstance(st, str):
                 ids.append(st)
                 continue
+            if st.get("distance"):
+                distances[st["id"]] = st["distance"]  # distance from this area's ZIP
             cur = stores.get(st["id"])
             if cur is None:
                 stores[st["id"]] = st
@@ -408,8 +414,10 @@ def unpack(snapshot):
     """Inverse of pack(): areas get their store objects back. Safe on unpacked data."""
     stores = snapshot.pop("stores", None) or {}
     for city in snapshot.get("cities", []):
-        city["stores"] = [stores[i] if isinstance(i, str) else i for i in city.get("stores", [])
-                          if not isinstance(i, str) or i in stores]
+        dist = city.get("distances", {})
+        city["stores"] = [({**stores[i], "distance": dist.get(i, stores[i].get("distance", ""))}
+                           if isinstance(i, str) else i)
+                          for i in city.get("stores", []) if not isinstance(i, str) or i in stores]
     return snapshot
 
 
@@ -498,7 +506,7 @@ def main():
         i = city_index[(city["name"], city["state"])]  # global index keeps the 256GB rotation even
         if time.monotonic() - started > RUN_BUDGET_SECONDS:
             return {**city, "stores": [], "errors": {m["key"]: "not reached this run" for m in models}, "checked": None}
-        stores, errors = check_city(city, city_models(models, i, run_index, BTO_SLICES), stamp)
+        stores, errors = check_city(city, city_models(models, i, run_index, BTO_SLICES, city.get("priority")), stamp)
         counts = {m["short"]: sum(1 for s in stores if s["availability"].get(m["key"], {}).get("status") == "available")
                   for m in models}
         print(f"{city['name']}, {city['state']}: {len(stores)} stores, in stock {counts}"

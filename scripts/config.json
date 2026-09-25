@@ -146,7 +146,7 @@
     { "name": "Las Vegas", "state": "NV", "zip": "89109" },
     { "name": "Detroit", "state": "MI", "zip": "48084" },
     { "name": "Atlanta", "state": "GA", "zip": "30326" },
-    { "name": "Miami", "state": "FL", "zip": "33131" },
+    { "name": "Miami", "state": "FL", "zip": "33131", "priority": true },
     { "name": "Minneapolis", "state": "MN", "zip": "55425" },
     { "name": "Orlando", "state": "FL", "zip": "32819" },
     { "name": "Tampa", "state": "FL", "zip": "33607" },
