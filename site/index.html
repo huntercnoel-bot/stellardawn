@@ -444,7 +444,10 @@ function cityCard(city, models, q, featured = false) {
   const pinned = state.pinned.has(key);
 
   // In-stock stores first, then by distance order from Apple.
-  const sorted = [...stores].sort((a, b) => isIn(b, models) - isIn(a, models));
+  const miles = (s) => parseFloat(s.distance) || 9999;
+  const sorted = featured
+    ? [...stores].sort((a, b) => miles(a) - miles(b))  // featured areas: nearest store first
+    : [...stores].sort((a, b) => isIn(b, models) - isIn(a, models));
   const rows = sorted.map((s) => `
     <div class="store${isIn(s, models) ? " in" : ""}">
       <div>
