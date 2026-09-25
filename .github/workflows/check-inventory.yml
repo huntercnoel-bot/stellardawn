@@ -142,6 +142,7 @@ jobs:
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           touch .nojekyll
+          echo "$GITHUB_SHA" > version.txt  # open pages reload themselves when this changes
           git init -q -b gh-pages
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
