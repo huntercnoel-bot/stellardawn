@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mac Studio Finder</title>
+<meta name="description" content="Live Apple Store pickup stock for the Mac Studio (M5 Ultra 96GB and 256GB, M5 Max 64GB and 128GB) across the US.">
+<style>
+:root {
+  --bg: #f4f5f7; --panel: #ffffff; --panel-2: #f9fafb; --text: #15171c; --muted: #636b78; --line: #e2e5ea;
+  --accent: #0071e3; --accent-text: #ffffff;
+  --ok: #17803f; --ok-bg: #e4f5ea; --ok-line: #9fd8b3;
+  --no: #6b7280; --no-bg: #eef0f3;
+  --warn: #8a5a00; --warn-bg: #fdf1d8; --err: #b42318; --err-bg: #fde8e7;
+  --star: #e0a100;
+  --shadow: 0 1px 2px rgba(20, 25, 35, .06), 0 4px 16px rgba(20, 25, 35, .05);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0e1014; --panel: #171a20; --panel-2: #1c2028; --text: #eceef2; --muted: #9aa3b0; --line: #2a2f38;
+    --accent: #2f8fff; --accent-text: #ffffff;
+    --ok: #5ad48a; --ok-bg: #12301f; --ok-line: #2a6b45;
+    --no: #9aa3b0; --no-bg: #232833;
+    --warn: #f3c460; --warn-bg: #3a2c0c; --err: #ff8a80; --err-bg: #3b1715;
+    --star: #f5c542; --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0e1014; --panel: #171a20; --panel-2: #1c2028; --text: #eceef2; --muted: #9aa3b0; --line: #2a2f38;
+  --accent: #2f8fff; --accent-text: #ffffff;
+  --ok: #5ad48a; --ok-bg: #12301f; --ok-line: #2a6b45;
+  --no: #9aa3b0; --no-bg: #232833;
+  --warn: #f3c460; --warn-bg: #3a2c0c; --err: #ff8a80; --err-bg: #3b1715;
+  --star: #f5c542; --shadow: none;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font: 15px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+a { color: var(--accent); }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wrap { max-width: 980px; margin: 0 auto; padding: 28px 16px 72px; display: grid; gap: 20px; }
+
+/* Header */
+header { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 8px 16px; }
+header h1 { margin: 0; font-size: 28px; line-height: 1.15; letter-spacing: -0.02em; text-wrap: balance; }
+header p { margin: 4px 0 0; color: var(--muted); }
+.live { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); white-space: nowrap; }
+.live i { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 3px var(--ok-bg); }
+.live.stale i { background: var(--warn); box-shadow: 0 0 0 3px var(--warn-bg); }
+
+.notice { border-radius: 12px; padding: 12px 14px; font-size: 14px; }
+.notice.warn { background: var(--warn-bg); color: var(--warn); }
+.notice.err { background: var(--err-bg); color: var(--err); }
+.notice code { font-size: 13px; }
+
+/* Model summary */
+.models { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+.model {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 18px;
+  box-shadow: var(--shadow); display: grid; gap: 12px; align-content: start;
+}
+.model.has-stock { border-color: var(--ok-line); }
+.model-top { display: flex; justify-content: space-between; align-items: start; gap: 12px; }
+.model h2 { margin: 0; font-size: 17px; letter-spacing: -0.01em; }
+.model .spec { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+.count { text-align: right; }
+.count b { display: block; font-size: 30px; line-height: 1; font-variant-numeric: tabular-nums; color: var(--no); }
+.model.has-stock .count b { color: var(--ok); }
+.count span { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.model .verdict { margin: 0; font-size: 14px; }
+.model details { font-size: 13px; color: var(--muted); }
+.model summary { cursor: pointer; }
+.model details ul { margin: 6px 0 0; padding-left: 18px; }
+.model details a { color: var(--text); }
+.part { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: var(--muted); }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 8px 16px;
+  background: var(--accent); color: var(--accent-text); text-decoration: none; font-weight: 600; font-size: 14px;
+  border: 0; cursor: pointer;
+}
+.btn:hover { filter: brightness(1.08); }
+.btn.small { padding: 5px 12px; font-size: 13px; }
+.btn.ok { background: var(--ok); color: var(--panel); }
+.others { font-size: 12px; color: var(--muted); }
+.others a { color: var(--muted); }
+
+/* Toolbar */
+.toolbar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  margin: 0 -16px; padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+  border-bottom: 1px solid var(--line);
+}
+.toolbar input[type=search] {
+  flex: 1 1 200px; min-width: 0; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line);
+  background: var(--panel); color: var(--text); font: inherit;
+}
+.seg { display: inline-flex; background: var(--no-bg); border-radius: 10px; padding: 3px; }
+.seg button {
+  border: 0; background: transparent; padding: 6px 12px; border-radius: 8px; cursor: pointer;
+  font-size: 13px; font-weight: 600; color: var(--muted);
+}
+.seg button[aria-pressed="true"] { background: var(--panel); color: var(--text); box-shadow: var(--shadow); }
+.toggle { display: inline-flex; gap: 6px; align-items: center; font-size: 14px; color: var(--muted); cursor: pointer; }
+.toggle input { width: 16px; height: 16px; accent-color: var(--ok); }
+
+/* Cities */
+.section-title { margin: 4px 0 -8px; font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.cities { display: grid; gap: 10px; }
+.city { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.city.has-stock { border-color: var(--ok-line); }
+.city-head { display: flex; align-items: center; gap: 4px; padding: 4px 10px 4px 4px; }
+.star {
+  border: 0; background: transparent; cursor: pointer; font-size: 20px; line-height: 1; width: 40px; height: 40px;
+  border-radius: 10px; color: var(--muted); opacity: .55; flex: none;
+}
+.star:hover { opacity: 1; }
+.star[aria-pressed="true"] { color: var(--star); opacity: 1; }
+.city-toggle {
+  flex: 1; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  border: 0; background: transparent; cursor: pointer; text-align: left; padding: 10px 4px;
+}
+.city-toggle h3 { margin: 0; font-size: 16px; }
+.city-toggle h3 small { color: var(--muted); font-weight: 400; font-size: 13px; margin-left: 6px; white-space: nowrap; }
+.chev { color: var(--muted); transition: transform .15s; flex: none; }
+.city.open .chev { transform: rotate(90deg); }
+.badges { display: flex; gap: 6px; flex-wrap: wrap; justify-content: end; }
+.pill { display: inline-block; border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.pill.available { background: var(--ok-bg); color: var(--ok); }
+.pill.unavailable, .pill.ineligible, .pill.unknown { background: var(--no-bg); color: var(--no); }
+.pill.error { background: var(--err-bg); color: var(--err); }
+.stores { border-top: 1px solid var(--line); }
+.store {
+  display: grid; grid-template-columns: minmax(170px, 1fr) minmax(0, 2.4fr); gap: 8px 16px; align-items: center;
+  padding: 12px 14px; border-top: 1px solid var(--line);
+}
+.store:first-child { border-top: 0; }
+.store.in { background: var(--panel-2); }
+.store-name { font-weight: 600; }
+.store-name a { color: var(--text); text-decoration: none; }
+.store-name a:hover { text-decoration: underline; }
+.store-meta { color: var(--muted); font-size: 13px; }
+.store-stock { display: flex; flex-wrap: wrap; gap: 6px; justify-content: end; align-items: center; }
+a.buy {
+  display: inline-flex; flex-direction: column; align-items: flex-start; text-decoration: none;
+  border: 1px solid var(--ok-line); background: var(--ok-bg); color: var(--ok);
+  border-radius: 10px; padding: 5px 10px; font-size: 13px; font-weight: 600; line-height: 1.3;
+}
+a.buy small { font-weight: 400; font-size: 11px; opacity: .85; }
+a.buy:hover { background: var(--ok); color: var(--panel); }
+.city .msg { padding: 10px 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+.city .msg.err { color: var(--err); }
+.activity { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+.activity .msg { padding: 0 16px 14px; margin: 0; color: var(--muted); font-size: 14px; }
+.events { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.events li { display: grid; grid-template-columns: 92px minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; padding: 10px 16px; border-top: 1px solid var(--line); }
+.events li:first-child { border-top: 0; }
+.ev-kind { font-size: 12px; font-weight: 700; border-radius: 999px; padding: 2px 8px; text-align: center; white-space: nowrap; }
+.events .up .ev-kind { background: var(--ok-bg); color: var(--ok); }
+.events .down .ev-kind { background: var(--no-bg); color: var(--no); }
+.ev-what small { display: block; color: var(--muted); font-size: 12px; }
+.events time { color: var(--muted); font-size: 13px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cell { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.seen { font-size: 11px; color: var(--muted); padding-right: 4px; }
+.city-seen { display: block; font-size: 12px; font-weight: 400; color: var(--ok); margin-top: 2px; }
+.featured .city { border: 2px solid var(--accent); }
+.featured .city-toggle { cursor: default; }
+.featured .chev, .featured .star { display: none; }
+.featured .city-head { padding-left: 12px; }
+.retailers { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+.retail-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 16px 10px; }
+.retail-head h2 { margin: 0; font-size: 17px; }
+.retailers .stores { border-top: 1px solid var(--line); }
+a.pill { text-decoration: none; }
+.more { display: block; width: 100%; border: 0; border-top: 1px solid var(--line); background: transparent; color: var(--accent); padding: 10px; font-weight: 600; cursor: pointer; }
+.retail-hit { color: var(--ok); font-weight: 600; }
+.empty { color: var(--muted); text-align: center; padding: 28px 0; background: var(--panel); border-radius: 14px; border: 1px dashed var(--line); }
+footer { color: var(--muted); font-size: 13px; }
+
+@media (max-width: 560px) {
+  .events li { grid-template-columns: auto minmax(0, 1fr); }
+  .events time { grid-column: 2; }
+  .cell { align-items: flex-start; }
+  header h1 { font-size: 24px; }
+  .store { grid-template-columns: 1fr; }
+  .store-stock { justify-content: start; }
+  .toolbar .seg { order: 2; }
+  .city-toggle { flex-wrap: wrap; }
+  .city-toggle h3 small { display: block; margin: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .chev { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Mac Studio Finder</h1>
+      <p>Live Apple Store pickup stock for the Mac Studio: M5 Ultra 96GB and 256GB, M5 Max 64GB and 128GB.</p>
+    </div>
+    <span class="live" id="live"><i></i><span id="updated">Loading…</span></span>
+  </header>
+
+  <div id="notice" hidden></div>
+  <section class="models" id="models" aria-label="Models"></section>
+  <section class="featured" id="featured" aria-label="Featured area" hidden></section>
+  <section class="activity" id="activity" aria-label="Recent restocks" hidden></section>
+  <section class="retailers" id="retailers" aria-label="Micro Center and Best Buy" hidden></section>
+
+  <div class="toolbar">
+    <input type="search" id="q" placeholder="Search city, state or store" aria-label="Search city, state or store">
+    <div class="seg" role="group" aria-label="Model">
+      <button type="button" data-model="all" aria-pressed="true">All</button>
+    </div>
+    <label class="toggle"><input type="checkbox" id="onlyStock"> In stock only</label>
+  </div>
+
+  <main id="cities" class="cities" aria-live="polite"></main>
+
+  <footer>
+    Stock comes straight from Apple's store‑pickup system. It's checked about every 5 minutes, and this
+    page picks up new results on its own. Tap an <b>In stock</b> button to open that Mac Studio on apple.com, then
+    choose pickup at the store. Stock moves fast, so check with Apple before you go. Tap ☆ to pin your cities to the top.
+    Not affiliated with Apple.
+  </footer>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const LABELS = { available: "In stock", unavailable: "Out of stock", ineligible: "Pickup unavailable", unknown: "Checking soon", error: "Check failed" };
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const state = {
+  data: null,
+  retailers: null,
+  version: "",
+  history: null,
+  moreActivity: false,
+  showAllRetail: false,
+  model: store.get("msf.model", "all"),
+  onlyStock: store.get("msf.onlyStock", false),
+  pinned: new Set(store.get("msf.pinned", [])),
+  open: new Set(),
+};
+
+const cityKey = (c) => c.name + "|" + c.state;
+const cityErrors = (c) => Object.entries(c.errors || (c.error ? { all: c.error } : {}));
+const visibleModels = () => state.data.models.filter((m) => state.model === "all" || m.key === state.model);
+const isIn = (s, models) => models.some((m) => s.availability[m.key]?.status === "available");
+const appleUrl = (m, label) => (m.variants.find((v) => v.label === label) || {}).page || m.apple_url;
+
+function timeAgo(iso) {
+  const mins = Math.round((Date.now() - new Date(iso)) / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return mins + " min ago";
+  const hrs = Math.round(mins / 60);
+  return hrs < 48 ? hrs + " hr ago" : Math.round(hrs / 24) + " days ago";
+}
+
+function uniqueStores() {
+  const map = new Map();
+  state.data.cities.forEach((c) => c.stores.forEach((s) => map.set(s.id || s.name, s)));
+  return [...map.values()];
+}
+
+function renderHeader() {
+  const d = state.data;
+  const stale = (Date.now() - new Date(d.updated)) / 60000 > 30;
+  $("live").classList.toggle("stale", stale);
+  $("updated").textContent = "Updated " + timeAgo(d.updated);
+  $("updated").title = new Date(d.updated).toLocaleString();
+  const failed = d.cities.filter((c) => cityErrors(c).length).length;
+  const notes = [];
+  if (stale) notes.push(`<div class="notice warn">This stock data is over 30 minutes old, so the automatic check may be running behind. Treat it as a rough guide.</div>`);
+  if (failed === d.cities.length) notes.push(`<div class="notice err">Apple didn't answer the last check for any city. The next automatic check runs in about 5 minutes.</div>`);
+  else if (failed) notes.push(`<div class="notice warn">${failed} of ${d.cities.length} cities couldn't be fully checked last time. Their results may be missing.</div>`);
+  $("notice").innerHTML = notes.join("");
+  $("notice").hidden = !notes.length;
+}
+
+// ---- Micro Center and Best Buy (retailers.json, from scripts/check_retailers.py)
+function retailerStores() {
+  const out = [];
+  Object.entries(state.retailers?.retailers || {}).forEach(([name, r]) =>
+    (r.stores || []).forEach((s) => out.push({ ...s, retailer: s.retailer || name })));
+  return out;
+}
+
+function retailerLine(m) {
+  const counts = {};
+  retailerStores().forEach((s) => {
+    if (s.availability?.[m.key]?.status === "available") counts[s.retailer] = (counts[s.retailer] || 0) + 1;
+  });
+  const parts = Object.entries(counts).map(([r, n]) => `${esc(r)}: ${n} ${n === 1 ? "store" : "stores"}`);
+  return parts.length ? `<p class="verdict retail-hit">Also in stock at ${parts.join(" · ")}.</p>` : "";
+}
+
+function retailPill(s, m) {
+  const a = s.availability?.[m.key];
+  if (!a) return "";
+  if (a.status === "available") {
+    return `<a class="buy" href="${esc(a.url || m.apple_url)}" target="_blank" rel="noopener">${esc(m.short)} in stock ↗<small>${esc(a.quote || "")}</small></a>`;
+  }
+  const label = a.status === "unavailable" ? (a.quote || "Out of stock") : (LABELS[a.status] || a.status);
+  return a.url ? `<a class="pill ${esc(a.status)}" href="${esc(a.url)}" target="_blank" rel="noopener">${esc(m.short)} · ${esc(label)}</a>`
+    : `<span class="pill ${esc(a.status)}">${esc(m.short)} · ${esc(label)}</span>`;
+}
+
+function renderRetailers() {
+  const box = $("retailers");
+  const ret = state.retailers?.retailers;
+  if (!ret || !retailerStores().length) { box.hidden = true; return; }
+  const models = visibleModels();
+  const q = $("q").value.trim().toLowerCase();
+  let stores = retailerStores().filter((s) => models.some((m) => s.availability?.[m.key]));
+  if (q) stores = stores.filter((s) => (s.name + " " + s.state).toLowerCase().includes(q));
+  const hits = stores.filter((s) => isIn(s, models));
+  const shown = state.showAllRetail ? [...hits, ...stores.filter((s) => !isIn(s, models))] : hits;
+  box.hidden = false;
+  box.innerHTML = `
+    <div class="retail-head">
+      <h2>Micro Center &amp; Best Buy</h2>
+      <span class="live"><span>Updated ${esc(timeAgo(state.retailers.updated))}</span></span>
+    </div>
+    <div class="stores">${shown.map((s) => `
+      <div class="store${isIn(s, models) ? " in" : ""}">
+        <div><div class="store-name">${esc(s.name)}</div><div class="store-meta">${esc(s.retailer)}${s.state ? ` · ${esc(s.state)}` : ""}</div></div>
+        <div class="store-stock">${models.map((m) => retailPill(s, m)).join("")}</div>
+      </div>`).join("") || `<div class="msg">${stores.length ? "No Micro Center or Best Buy store has these in stock right now." : "No Micro Center or Best Buy results yet."}</div>`}
+    </div>
+    ${stores.length > hits.length ? `<button class="more" type="button" data-retail-all>${state.showAllRetail ? "Show only stores with stock" : `Show all ${stores.length} stores`}</button>` : ""}`;
+}
+
+function renderModels() {
+  const stores = uniqueStores();
+  $("models").innerHTML = state.data.models.map((m) => {
+    const inStores = stores.filter((s) => s.availability[m.key]?.status === "available");
+    const cities = state.data.cities.filter((c) => c.stores.some((s) => s.availability[m.key]?.status === "available"));
+    const verdict = inStores.length
+      ? `In stock for pickup in ${cities.slice(0, 4).map((c) => esc(c.name)).join(", ")}${cities.length > 4 ? ` and ${cities.length - 4} more` : ""}.`
+      : `Not in stock at any checked Apple Store right now.`;
+    return `<article class="model${inStores.length ? " has-stock" : ""}">
+      <div class="model-top">
+        <div><h2>${esc(m.label)}</h2><p class="spec">${esc(m.note)}</p></div>
+        <div class="count"><b>${inStores.length}</b><span>stores in stock</span></div>
+      </div>
+      <p class="verdict">${verdict}</p>
+      ${retailerLine(m)}
+      <div class="actions">
+        <a class="btn" href="${esc(m.apple_url)}" target="_blank" rel="noopener">Open on apple.com ↗</a>
+        ${inStores.length ? `<button class="btn small ok" type="button" data-show="${esc(m.key)}">Show stores</button>` : ""}
+      </div>
+      <details><summary>Setups checked (${m.variants.length})</summary><ul>${m.variants.map((v) =>
+        `<li><a href="${esc(v.page || m.apple_url)}" target="_blank" rel="noopener">${esc(v.label)}</a> <span class="part">${esc(v.part || v.error || "")}</span></li>`).join("")}</ul></details>
+      <p class="others">Also check: ${m.retailers.map((r) => `<a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.name)}</a>`).join(" · ")}</p>
+    </article>`;
+  }).join("");
+}
+
+// ---- Stock history (history.json + per-store last_seen / in_since / last_restock)
+const feedModels = () => visibleModels().filter((m) => state.model !== "all" || !m.reference);
+const modelShort = (key) => (state.data.models.find((m) => m.key === key) || {}).short || key;
+
+function cityHistory(city, models) {
+  const keys = new Set(models.filter((m) => state.model !== "all" || !m.reference).map((m) => m.key));
+  if (!keys.size) return "";
+  let last = "";
+  city.stores.forEach((s) => keys.forEach((k) => {
+    const a = s.availability?.[k];
+    if (a?.last_seen && a.last_seen > last) last = a.last_seen;
+  }));
+  const ids = new Set(city.stores.map((s) => s.id));
+  const dayAgo = new Date(Date.now() - 86400000).toISOString();
+  const restocks = (state.history?.events || []).filter((e) =>
+    e.event === "restock" && keys.has(e.model) && ids.has(e.store) && e.t > dayAgo).length;
+  const parts = [];
+  if (last) parts.push(`last in stock ${timeAgo(last)}`);
+  if (restocks) parts.push(`${restocks} ${restocks === 1 ? "restock" : "restocks"} in 24h`);
+  return parts.length ? `<span class="city-seen">${esc(parts.join(" · "))}</span>` : "";
+}
+
+function renderActivity() {
+  const box = $("activity");
+  const events = state.history?.events;
+  if (!events) { box.hidden = true; return; }
+  const keys = new Set(feedModels().map((m) => m.key));
+  const list = events.filter((e) => keys.has(e.model)).slice().reverse();
+  const shown = list.slice(0, state.moreActivity ? 40 : 6);
+  const started = state.history.started || (events[0] && events[0].t);
+  box.hidden = false;
+  box.innerHTML = `
+    <div class="retail-head"><h2>Recent restocks</h2><span class="live"><span>Last 14 days</span></span></div>
+    ${shown.length ? `<ol class="events">${shown.map((e) => `
+      <li class="${e.event === "restock" ? "up" : "down"}">
+        <span class="ev-kind">${e.event === "restock" ? "Restocked" : "Sold out"}</span>
+        <span class="ev-what"><b>${esc(modelShort(e.model))}</b> at Apple ${esc(e.name)}<small>${esc(e.city)}, ${esc(e.state)}${
+          e.event === "sold_out" && e.lasted != null ? ` · lasted ${e.lasted < 60 ? e.lasted + " min" : Math.round(e.lasted / 60) + " hr"}` : ""}</small></span>
+        <time datetime="${esc(e.t)}" title="${esc(new Date(e.t).toLocaleString())}">${esc(timeAgo(e.t))}</time>
+      </li>`).join("")}</ol>`
+      : `<p class="msg">No restocks or sell-outs for these models yet. Every change at any tracked Apple Store will show up here${started ? "" : " as the tracker runs"}.</p>`}
+    ${list.length > 6 ? `<button class="more" type="button" data-more-activity>${state.moreActivity ? "Show fewer" : `Show ${Math.min(list.length, 40) - 6} more`}</button>` : ""}`;
+}
+
+function stockCell(s, m) {
+  const a = s.availability[m.key] || { status: "unknown" };
+  if (a.status !== "available") {
+    const seen = a.last_seen && !m.reference ? `<span class="seen">Last in stock ${esc(timeAgo(a.last_seen))}</span>` : "";
+    return `<span class="cell"><span class="pill ${esc(a.status)}" title="${esc(a.quote || "")}">${esc(m.short)} · ${esc(LABELS[a.status] || a.status)}</span>${seen}</span>`;
+  }
+  const setups = a.in_stock?.length ? a.in_stock : [m.variants[0]?.label];
+  const age = a.in_since ? timeAgo(a.in_since) : "";
+  const since = !age ? "" : age === "just now" ? "Just restocked" : `In stock for ${age.replace(" ago", "")}`;
+  return setups.map((label) => `<a class="buy" href="${esc(appleUrl(m, label))}" target="_blank" rel="noopener"
+      title="Open this Mac Studio on apple.com">${esc(m.short)} in stock ↗<small>${esc(m.variants.length > 1 ? label : (since || a.quote || "Pick up at this store"))}</small></a>`).join("");
+}
+
+function cityCard(city, models, q, featured = false) {
+  const key = cityKey(city);
+  let stores = city.stores;
+  const cityMatch = !q || (city.name + " " + city.state + " " + city.zip).toLowerCase().includes(q);
+  if (!cityMatch) stores = stores.filter((s) => (s.name + " " + s.city + " " + s.state).toLowerCase().includes(q));
+  const onlyStock = state.onlyStock && !featured;
+  if (onlyStock) stores = stores.filter((s) => isIn(s, models));
+  if ((!cityMatch && !stores.length) || (onlyStock && !stores.length)) return "";
+
+  const hits = city.stores.filter((s) => isIn(s, models));
+  const errs = cityErrors(city);
+  const open = featured || state.open.has(key) || (q && !cityMatch);
+  const badges = models.map((m) => {
+    const n = city.stores.filter((s) => s.availability[m.key]?.status === "available").length;
+    return n ? `<span class="pill available">${esc(m.short)} · ${n} in stock</span>` : "";
+  }).join("") || (errs.length && !city.stores.length ? `<span class="pill error">Check failed</span>` : `<span class="pill unavailable">None in stock</span>`);
+  const pinned = state.pinned.has(key);
+
+  // In-stock stores first, then by distance order from Apple.
+  const miles = (s) => parseFloat(s.distance) || 9999;
+  const sorted = featured
+    ? [...stores].sort((a, b) => miles(a) - miles(b))  // featured areas: nearest store first
+    : [...stores].sort((a, b) => isIn(b, models) - isIn(a, models));
+  const rows = sorted.map((s) => `
+    <div class="store${isIn(s, models) ? " in" : ""}">
+      <div>
+        <div class="store-name">${s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener">Apple ${esc(s.name)}</a>` : `Apple ${esc(s.name)}`}</div>
+        <div class="store-meta">${esc(s.city)}, ${esc(s.state)}${s.distance ? ` · ${esc(s.distance)}` : ""}</div>
+      </div>
+      <div class="store-stock">${models.map((m) => stockCell(s, m)).join("")}</div>
+    </div>`).join("");
+  const errMsg = errs.map(([k, msg]) => `<div class="msg err">Couldn't check ${esc((state.data.models.find((m) => m.key === k) || {}).short || "stock")} here last time (${esc(msg)}).</div>`).join("");
+  const age = city.checked ? (new Date(state.data.updated) - new Date(city.checked)) / 60000 : 0;
+  const staleMsg = age > 8 ? `<div class="msg">Showing results from ${esc(timeAgo(city.checked))}; Apple wasn't checked here in the latest run.</div>` : "";
+  const body = staleMsg + ((errs.length && !city.stores.length) ? errMsg
+    : errMsg + (sorted.length ? `<div class="stores">${rows}</div>` : `<div class="msg">No Apple Stores found near ${esc(city.zip)}.</div>`));
+
+  return `<section class="city${hits.length ? " has-stock" : ""}${open ? " open" : ""}" data-key="${esc(key)}">
+    <div class="city-head">
+      <button class="star" type="button" data-pin="${esc(key)}" aria-pressed="${pinned}" aria-label="${pinned ? "Unpin" : "Pin"} ${esc(city.name)}">${pinned ? "★" : "☆"}</button>
+      <button class="city-toggle" type="button" data-toggle="${esc(key)}" aria-expanded="${!!open}">
+        <h3>${esc(city.name)}, ${esc(city.state)}<small>${city.stores.length} ${city.stores.length === 1 ? "store" : "stores"}${featured ? ` · distances from ${esc(city.zip)}` : ""}</small>${cityHistory(city, models)}</h3>
+        <span class="badges">${badges}<span class="chev" aria-hidden="true">›</span></span>
+      </button>
+    </div>
+    ${open ? body : ""}
+  </section>`;
+}
+
+// Priority areas (config "priority": true, e.g. Miami) sit at the top with every model shown.
+function renderFeatured() {
+  const box = $("featured");
+  const list = state.data.cities.filter((c) => c.priority);
+  box.hidden = !list.length;
+  box.innerHTML = list.map((c) => cityCard(c, state.data.models, "", true)).join("");
+}
+
+function renderCities() {
+  const q = $("q").value.trim().toLowerCase();
+  const models = visibleModels();
+  const hasStock = (c) => c.stores.some((s) => isIn(s, models));
+  const cities = state.data.cities.filter((c) => !c.priority);
+  const groups = [
+    ["Your cities", cities.filter((c) => state.pinned.has(cityKey(c)))],
+    ["In stock now", cities.filter((c) => !state.pinned.has(cityKey(c)) && hasStock(c))],
+    ["Everywhere else", cities.filter((c) => !state.pinned.has(cityKey(c)) && !hasStock(c))],
+  ];
+  const html = groups.map(([title, list]) => {
+    const cards = list.map((c) => cityCard(c, models, q)).join("");
+    return cards ? `<h2 class="section-title">${title}</h2>${cards}` : "";
+  }).join("");
+  $("cities").innerHTML = html || `<p class="empty">${state.onlyStock ? "Nothing in stock matches right now. Turn off “In stock only” to see every store." : "No cities match your search."}</p>`;
+}
+
+function renderControls() {
+  const seg = document.querySelector(".seg");
+  if (state.data && seg.children.length === 1) {
+    seg.insertAdjacentHTML("beforeend", state.data.models.map((m) =>
+      `<button type="button" data-model="${esc(m.key)}" aria-pressed="false">${esc(m.short)}</button>`).join(""));
+  }
+  if (state.data && state.model !== "all" && !state.data.models.some((m) => m.key === state.model)) state.model = "all";
+  document.querySelectorAll(".seg button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.model === state.model)));
+  $("onlyStock").checked = state.onlyStock;
+}
+
+function renderAll() {
+  renderHeader(); renderFeatured(); renderModels(); renderActivity(); renderRetailers(); renderControls(); renderCities();
+}
+
+// Reload the page itself when a newer version of the site is published, so an open tab
+// never keeps showing an old layout.
+function checkVersion() {
+  return fetch("version.txt?t=" + Date.now(), { cache: "no-store" })
+    .then((r) => (r.ok ? r.text() : ""))
+    .then((v) => {
+      v = v.trim();
+      if (!v) return;
+      if (state.version && v !== state.version) location.reload();
+      state.version = v;
+    })
+    .catch(() => {});
+}
+
+function load(first) {
+  checkVersion();
+  return fetch("inventory.json?t=" + Date.now(), { cache: "no-store" })
+    .then((r) => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+    .then((d) => {
+      // Stores are listed once at the top level; areas refer to them by id.
+      if (d.stores) d.cities.forEach((c) => {
+        c.stores = c.stores.filter((id) => d.stores[id])
+          .map((id) => ({ ...d.stores[id], distance: c.distances?.[id] ?? d.stores[id].distance }));
+      });
+      state.data = d;
+      return fetch("retailers.json?t=" + Date.now(), { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null)).catch(() => null)
+        .then((ret) => { state.retailers = ret; })
+        .then(() => fetch("history.json?t=" + Date.now(), { cache: "no-store" }))
+        .then((r) => (r.ok ? r.json() : null)).catch(() => null)
+        .then((h) => { state.history = h; return d; });
+    })
+    .then((d) => {
+      if (first) {
+        // Start with in-stock and pinned cities open.
+        d.cities.forEach((c) => { if (state.pinned.has(cityKey(c)) || c.stores.some((s) => isIn(s, d.models))) state.open.add(cityKey(c)); });
+      }
+      renderAll();
+    })
+    .catch((err) => {
+      if (state.data) return; // keep showing the last good data
+      $("updated").textContent = "Waiting for first check";
+      $("notice").hidden = false;
+      $("notice").innerHTML = `<div class="notice warn">The first stock check hasn't finished yet (${esc(err.message)}). This page fills in automatically within a few minutes. Try reloading shortly.</div>`;
+    });
+}
+
+document.addEventListener("click", (e) => {
+  const pin = e.target.closest("[data-pin]");
+  const tog = e.target.closest("[data-toggle]");
+  const seg = e.target.closest(".seg button");
+  const show = e.target.closest("[data-show]");
+  if (e.target.closest("[data-more-activity]")) { state.moreActivity = !state.moreActivity; renderActivity(); return; }
+  if (e.target.closest("[data-retail-all]")) { state.showAllRetail = !state.showAllRetail; renderRetailers(); return; }
+  if (pin) {
+    const k = pin.dataset.pin;
+    state.pinned.has(k) ? state.pinned.delete(k) : (state.pinned.add(k), state.open.add(k));
+    store.set("msf.pinned", [...state.pinned]);
+    renderCities();
+  } else if (tog) {
+    const k = tog.dataset.toggle;
+    state.open.has(k) ? state.open.delete(k) : state.open.add(k);
+    renderCities();
+  } else if (seg) {
+    state.model = seg.dataset.model; store.set("msf.model", state.model);
+    renderControls(); renderActivity(); renderRetailers(); renderCities();
+  } else if (show) {
+    state.model = show.dataset.show; state.onlyStock = true;
+    store.set("msf.model", state.model); store.set("msf.onlyStock", true);
+    state.data.cities.forEach((c) => state.open.add(cityKey(c)));
+    renderControls(); renderCities();
+    $("cities").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+});
+$("q").addEventListener("input", () => { if (state.data) { renderRetailers(); renderCities(); } });
+$("onlyStock").addEventListener("change", (e) => {
+  state.onlyStock = e.target.checked; store.set("msf.onlyStock", state.onlyStock);
+  state.data && renderCities();
+});
+
+renderControls();
+load(true);
+setInterval(() => load(false), 60 * 1000);
+setInterval(() => state.data && renderHeader(), 60 * 1000);
+</script>
+</body>
+</html>
