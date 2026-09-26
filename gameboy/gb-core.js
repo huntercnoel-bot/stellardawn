@@ -1,10 +1,11 @@
 /*
  * GameBoy-Online core by Grant Galitz (GPL-2.0), from the "gameboy" npm package 0.2.0.
  * Wrapped for direct browser and Node use: the emitter and debug dependencies are
- * replaced by the small shims below. Everything else is the upstream core.
+ * replaced by the small shims below. Three upstream bugs are fixed: illegal-opcode
+ * handlers and the MBC RAM accessors used `this` (the jump table) instead of
+ * `parentObj`, and the MBC3 RTC halt flag was written to a misspelled property.
  */
 (function (root) {
-'use strict';
 function Emitter(obj) {
   obj.on = function (name, fn) {
     ((this._listeners || (this._listeners = {}))[name] || (this._listeners[name] = [])).push(fn);
@@ -1942,7 +1943,7 @@ GameBoyCore.prototype.OPCODE = [
   //0xD3 - Illegal
   //#0xD3:
   function (parentObj) {
-    this.emit('error', new Error('Illegal op code 0xD3 called'));
+    parentObj.emit('error', new Error('Illegal op code 0xD3 called'));
   },
   //CALL !FC, nn
   //#0xD4:
@@ -2020,7 +2021,7 @@ GameBoyCore.prototype.OPCODE = [
   //0xDB - Illegal
   //#0xDB:
   function (parentObj) {
-    this.emit('error', new Error('Illegal op code 0xDB called'));
+    parentObj.emit('error', new Error('Illegal op code 0xDB called'));
   },
   //CALL FC, nn
   //#0xDC:
@@ -2042,7 +2043,7 @@ GameBoyCore.prototype.OPCODE = [
   //0xDD - Illegal
   //#0xDD:
   function (parentObj) {
-    this.emit('error', new Error('Illegal op code 0xDD called, pausing emulation.'));
+    parentObj.emit('error', new Error('Illegal op code 0xDD called, pausing emulation.'));
   },
   //SBC A, n
   //#0xDE:
@@ -2085,12 +2086,12 @@ GameBoyCore.prototype.OPCODE = [
   //0xE3 - Illegal
   //#0xE3:
   function (parentObj) {
-    this.emit('error', new Error('Illegal op code 0xE3 called'));
+    parentObj.emit('error', new Error('Illegal op code 0xE3 called'));
   },
   //0xE4 - Illegal
   //#0xE4:
   function (parentObj) {
-    this.emit('error', new Error('Illegal op code 0xE4 called'));
+    parentObj.emit('error', new Error('Illegal op code 0xE4 called'));
   },
   //PUSH HL
   //#0xE5:
@@ -2144,17 +2145,17 @@ GameBoyCore.prototype.OPCODE = [
   //0xEB - Illegal
   //#0xEB:
   function (parentObj) {
-    this.emit('error', new Error("Illegal op code 0xEB called"));
+    parentObj.emit('error', new Error("Illegal op code 0xEB called"));
   },
   //0xEC - Illegal
   //#0xEC:
   function (parentObj) {
-    this.emit('error', new Error("Illegal op code 0xEC called"));
+    parentObj.emit('error', new Error("Illegal op code 0xEC called"));
   },
   //0xED - Illegal
   //#0xED:
   function (parentObj) {
-    this.emit('error', new Error("Illegal op code 0xED called"));
+    parentObj.emit('error', new Error("Illegal op code 0xED called"));
   },
   //XOR n
   //#0xEE:
@@ -2204,7 +2205,7 @@ GameBoyCore.prototype.OPCODE = [
   //0xF4 - Illegal
   //#0xF4:
   function (parentObj) {
-    this.emit('error', new Error("Illegal op code 0xF4 called"));
+    parentObj.emit('error', new Error("Illegal op code 0xF4 called"));
   },
   //PUSH AF
   //#0xF5:
@@ -2262,12 +2263,12 @@ GameBoyCore.prototype.OPCODE = [
   //0xFC - Illegal
   //#0xFC:
   function (parentObj) {
-    this.emit('error', new Error("Illegal op code 0xFC called"));
+    parentObj.emit('error', new Error("Illegal op code 0xFC called"));
   },
   //0xFD - Illegal
   //#0xFD:
   function (parentObj) {
-    this.emit('error', new Error("Illegal op code 0xFD called"));
+    parentObj.emit('error', new Error("Illegal op code 0xFD called"));
   },
   //CP n
   //#0xFE:
@@ -8029,7 +8030,7 @@ GameBoyCore.prototype.memoryReadROM = function (parentObj, address) {
 };
 GameBoyCore.prototype.memoryReadMBC = function (parentObj, address) {
   //Switchable RAM
-  if (parentObj.MBCRAMBanksEnabled || this.opts.overrideMbc) {
+  if (parentObj.MBCRAMBanksEnabled || parentObj.opts.overrideMbc) {
     return parentObj.MBCRam[address + parentObj.currMBCRAMBankPosition];
   }
   //debug("Reading from disabled RAM.", 1);
@@ -8037,7 +8038,7 @@ GameBoyCore.prototype.memoryReadMBC = function (parentObj, address) {
 };
 GameBoyCore.prototype.memoryReadMBC7 = function (parentObj, address) {
   //Switchable RAM
-  if (parentObj.MBCRAMBanksEnabled || this.opts.overrideMbc) {
+  if (parentObj.MBCRAMBanksEnabled || parentObj.opts.overrideMbc) {
     switch (address) {
       case 0xA000:
       case 0xA060:
@@ -8067,7 +8068,7 @@ GameBoyCore.prototype.memoryReadMBC7 = function (parentObj, address) {
 };
 GameBoyCore.prototype.memoryReadMBC3 = function (parentObj, address) {
   //Switchable RAM
-  if (parentObj.MBCRAMBanksEnabled || this.opts.overrideMbc) {
+  if (parentObj.MBCRAMBanksEnabled || parentObj.opts.overrideMbc) {
     switch (parentObj.currMBCRAMBank) {
       case 0x00:
       case 0x01:
@@ -8390,12 +8391,12 @@ GameBoyCore.prototype.memoryHighWriteNormal = function (parentObj, address, data
   parentObj.memory[0xFF00 | address] = data;
 };
 GameBoyCore.prototype.memoryWriteMBCRAM = function (parentObj, address, data) {
-  if (parentObj.MBCRAMBanksEnabled || this.opts.overrideMbc) {
+  if (parentObj.MBCRAMBanksEnabled || parentObj.opts.overrideMbc) {
     parentObj.MBCRam[address + parentObj.currMBCRAMBankPosition] = data;
   }
 };
 GameBoyCore.prototype.memoryWriteMBC3RAM = function (parentObj, address, data) {
-  if (parentObj.MBCRAMBanksEnabled || this.opts.overrideMbc) {
+  if (parentObj.MBCRAMBanksEnabled || parentObj.opts.overrideMbc) {
     switch (parentObj.currMBCRAMBank) {
       case 0x00:
       case 0x01:
@@ -8432,7 +8433,7 @@ GameBoyCore.prototype.memoryWriteMBC3RAM = function (parentObj, address, data) {
         break;
       case 0x0C:
         parentObj.RTCDayOverFlow = (data > 0x7F);
-        parentObj.RTCHalt = (data & 0x40) == 0x40;
+        parentObj.RTCHALT = (data & 0x40) == 0x40;
         parentObj.RTCDays = ((data & 0x1) << 8) | (parentObj.RTCDays & 0xFF);
         break;
       default:
