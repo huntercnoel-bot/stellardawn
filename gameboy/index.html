@@ -1,0 +1,694 @@
+<title>MissingNo. Yellow</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap">
+<style>
+  :root {
+    color-scheme: dark;
+    --ground: #15141a;
+    --shell: #f1c230;
+    --shell-hi: #f8d761;
+    --shell-lo: #c99a12;
+    --ink: #3b2c05;
+    --bezel: #2b2e3b;
+    --bezel-lo: #1d1f29;
+    --lcd-off: #c9cfb8;
+    --glitch: #d4383b;
+    --glitch-lo: #9c2027;
+    --pill: #6f7280;
+    --pill-lo: #4c4f5a;
+    --paper: #f6f1e3;
+    --muted: #b7b2a4;
+    --pixel: 'Silkscreen', ui-monospace, 'SF Mono', Menlo, monospace;
+    --body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--ground); color: var(--paper);
+    font-family: var(--body); -webkit-user-select: none; user-select: none; touch-action: manipulation;
+    -webkit-touch-callout: none; overscroll-behavior: none; overflow: hidden;
+  }
+  .app {
+    height: 100%; box-sizing: border-box; padding-inline: 16px; padding-block: 10px;
+    display: flex; justify-content: center;
+  }
+  .shell {
+    width: 100%; max-width: 440px; height: 100%; box-sizing: border-box;
+    background: linear-gradient(180deg, var(--shell-hi), var(--shell) 18%, var(--shell) 82%, var(--shell-lo));
+    border-radius: 18px 18px 56px 18px; padding: 14px 16px 18px;
+    display: grid; grid-template-rows: auto auto 1fr; gap: 10px;
+    box-shadow: inset 0 -4px 0 rgba(0,0,0,.18), 0 10px 40px rgba(0,0,0,.5);
+  }
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--ink); }
+  .brand { font-family: var(--pixel); font-size: 15px; letter-spacing: .04em; line-height: 1; }
+  .brand b { color: var(--glitch-lo); font-weight: 700; }
+  .menu-btn {
+    font-family: var(--pixel); font-size: 12px; letter-spacing: .08em; color: var(--ink);
+    background: rgba(59,44,5,.1); border: 2px solid rgba(59,44,5,.35); border-radius: 999px;
+    padding: 6px 12px; cursor: pointer;
+  }
+  .menu-btn:focus-visible, .sheet button:focus-visible, .cta:focus-visible { outline: 3px solid var(--glitch); outline-offset: 2px; }
+
+  .bezel {
+    background: var(--bezel); border-radius: 10px 10px 34px 10px; padding: 12px 14px 10px;
+    box-shadow: inset 0 2px 0 rgba(255,255,255,.06), inset 0 -3px 0 var(--bezel-lo);
+  }
+  .bezel-label { display: flex; align-items: center; gap: 6px; font-family: var(--pixel); font-size: 9px; color: #8c90a3; letter-spacing: .08em; margin-bottom: 7px; }
+  .led { width: 7px; height: 7px; border-radius: 50%; background: #4a1b1d; }
+  .led.on { background: #ff4a4d; box-shadow: 0 0 6px #ff4a4d; }
+  .screen { position: relative; aspect-ratio: 10 / 9; width: 100%; max-width: 100%; background: var(--lcd-off); border-radius: 3px; overflow: hidden; }
+  .screen #lcd { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; image-rendering: crisp-edges; display: block; }
+  .insert {
+    position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 10px; padding: 12px; text-align: center; color: #2d3322; background: var(--lcd-off);
+  }
+  .insert h1 { font-family: var(--pixel); font-size: clamp(13px, 4.2vw, 17px); margin: 0; line-height: 1.25; text-wrap: balance; }
+  .insert p { margin: 0; font-size: 12px; line-height: 1.4; max-width: 30ch; color: #4a523b; }
+  .glitchbox { width: 56px; height: 56px; image-rendering: pixelated; }
+  .cta {
+    font-family: var(--pixel); font-size: 12px; letter-spacing: .04em; color: #fff; background: var(--glitch);
+    border: 0; border-bottom: 3px solid var(--glitch-lo); border-radius: 8px; padding: 10px 14px; cursor: pointer;
+  }
+  .tap {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(21,20,26,.72);
+    font-family: var(--pixel); color: var(--paper); font-size: 13px; letter-spacing: .06em; text-align: center; padding: 12px; cursor: pointer;
+  }
+
+  .pad {
+    position: relative; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr auto;
+    align-items: center; touch-action: none; min-height: 0;
+  }
+  .dpad { position: relative; width: min(40vw, 150px); aspect-ratio: 1; justify-self: center; }
+  .dpad .arm { position: absolute; background: #25262d; border-radius: 6px; box-shadow: inset 0 -3px 0 #121217; }
+  .dpad .h { left: 0; right: 0; top: 33.3%; height: 33.4%; }
+  .dpad .v { top: 0; bottom: 0; left: 33.3%; width: 33.4%; }
+  .dpad .hub { position: absolute; left: 41%; top: 41%; width: 18%; height: 18%; border-radius: 50%; background: #1b1c22; }
+  .dpad .dir { position: absolute; width: 33.4%; height: 33.4%; }
+  .dpad .dir.on { background: rgba(212,56,59,.45); border-radius: 6px; }
+  .d-up { left: 33.3%; top: 0; } .d-down { left: 33.3%; bottom: 0; } .d-left { left: 0; top: 33.3%; } .d-right { right: 0; top: 33.3%; }
+  .ab { position: relative; width: min(42vw, 160px); aspect-ratio: 1.15; justify-self: center; transform: rotate(-24deg); }
+  .btn {
+    position: absolute; width: 44%; aspect-ratio: 1; border-radius: 50%; background: var(--glitch);
+    box-shadow: inset 0 -4px 0 var(--glitch-lo), 0 2px 0 rgba(0,0,0,.2); display: flex; align-items: center; justify-content: center;
+  }
+  .btn span { transform: rotate(24deg); font-family: var(--pixel); font-weight: 700; font-size: 15px; color: rgba(255,255,255,.9); }
+  .btn.on { filter: brightness(.8); box-shadow: inset 0 2px 0 var(--glitch-lo); }
+  .b-b { left: 2%; top: 38%; } .b-a { right: 2%; top: 8%; }
+  .pills { grid-column: 1 / -1; display: flex; justify-content: center; gap: 22px; padding-bottom: 4px; }
+  .pill { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+  .pill i { display: block; width: 50px; height: 14px; border-radius: 999px; background: var(--pill); box-shadow: inset 0 -2px 0 var(--pill-lo); transform: rotate(-24deg); }
+  .pill.on i { background: var(--pill-lo); }
+  .pill b { font-family: var(--pixel); font-size: 9px; letter-spacing: .1em; color: var(--ink); font-weight: 400; }
+  .pill.ff i { width: 34px; }
+  .pill.ff.on i { background: var(--glitch); box-shadow: inset 0 -2px 0 var(--glitch-lo); }
+
+  .sheet-wrap { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: flex; align-items: flex-end; justify-content: center; z-index: 5; }
+  .sheet {
+    width: 100%; max-width: 440px; max-height: 88%; overflow-y: auto; box-sizing: border-box; background: #22212a; color: var(--paper);
+    border-radius: 16px 16px 0 0; padding: 18px 16px calc(18px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 14px;
+  }
+  .sheet h2 { font-family: var(--pixel); font-size: 13px; letter-spacing: .06em; margin: 0; color: var(--shell); font-weight: 400; }
+  .sheet section { display: grid; gap: 8px; }
+  .sheet .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .sheet button {
+    font: 600 14px/1.2 var(--body); color: var(--paper); background: #33323d; border: 1px solid #45444f; border-radius: 10px;
+    padding: 12px 10px; text-align: left; cursor: pointer;
+  }
+  .sheet button small { display: block; font-weight: 400; font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .sheet button:disabled { opacity: .45; }
+  .sheet .switch { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .sheet .switch em { font-style: normal; font-family: var(--pixel); font-size: 11px; padding: 4px 8px; border-radius: 6px; background: #45444f; }
+  .sheet .switch em.yes { background: var(--glitch); color: #fff; }
+  .note { font-size: 12px; line-height: 1.45; color: var(--muted); margin: 0; }
+  .note code { font-family: ui-monospace, Menlo, monospace; font-size: 11px; color: var(--paper); }
+  .toast {
+    position: fixed; left: 50%; top: calc(12px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); z-index: 9;
+    background: #22212a; color: var(--paper); border: 1px solid #45444f; border-radius: 10px; padding: 9px 14px; font-size: 13px;
+    max-width: calc(100% - 32px); box-sizing: border-box; box-shadow: 0 6px 24px rgba(0,0,0,.4);
+  }
+  input[type=file] { display: none; }
+
+  @media (orientation: landscape) and (max-height: 520px) {
+    .shell { max-width: none; border-radius: 18px; grid-template-columns: 1fr auto 1fr; grid-template-rows: auto 1fr; padding: 8px 14px; }
+    .top { grid-column: 1 / -1; }
+    .bezel { grid-column: 2; grid-row: 2; height: 100%; box-sizing: border-box; padding: 6px 8px; display: flex; flex-direction: column; }
+    .bezel-label { display: none; }
+    .screen { height: 100%; width: auto; }
+    .pad { display: contents; }
+    .dpad { grid-column: 1; grid-row: 2; align-self: center; width: min(22vw, 150px); }
+    .ab { grid-column: 3; grid-row: 2; align-self: center; width: min(24vw, 160px); }
+    .pills { position: fixed; left: 0; right: 0; bottom: calc(4px + env(safe-area-inset-bottom, 0px)); padding-bottom: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) { .glitchbox { animation: none; } }
+</style>
+
+<div class="app">
+  <div class="shell" id="shell">
+    <div class="top">
+      <div class="brand">Missing<b>No.</b> Yellow</div>
+      <button class="menu-btn" id="menuBtn" aria-haspopup="dialog">MENU</button>
+    </div>
+
+    <div class="bezel">
+      <div class="bezel-label"><span class="led" id="led"></span>DOT MATRIX WITH STEREO SOUND</div>
+      <div class="screen" id="screen">
+        <canvas id="lcd" width="160" height="144"></canvas>
+        <div class="insert" id="insert">
+          <canvas class="glitchbox" id="glitch" width="16" height="16"></canvas>
+          <h1>Insert your Pokémon Yellow ROM</h1>
+          <p>Your file stays on this phone. Yellow (US/Europe) gets the MissingNo. starter patch automatically.</p>
+          <button class="cta" id="loadBtn">LOAD ROM</button>
+        </div>
+        <div class="tap" id="tap" hidden>TAP TO PLAY<br>WITH SOUND</div>
+      </div>
+    </div>
+
+    <div class="pad" id="pad">
+      <div class="dpad" id="dpad" data-zone="dpad">
+        <div class="arm h"></div><div class="arm v"></div><div class="hub"></div>
+        <div class="dir d-up" data-dir="up"></div><div class="dir d-down" data-dir="down"></div>
+        <div class="dir d-left" data-dir="left"></div><div class="dir d-right" data-dir="right"></div>
+      </div>
+      <div class="ab">
+        <div class="btn b-b" data-key="b"><span>B</span></div>
+        <div class="btn b-a" data-key="a"><span>A</span></div>
+      </div>
+      <div class="pills" id="pills">
+        <div class="pill" data-key="select"><i></i><b>SELECT</b></div>
+        <div class="pill" data-key="start"><i></i><b>START</b></div>
+        <div class="pill ff" data-key="ff" id="ffPill"><i></i><b>FAST</b></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="sheet-wrap" id="sheetWrap" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-label="Menu">
+    <section>
+      <h2>CARTRIDGE</h2>
+      <button id="mLoad">Load a ROM<small id="romInfo">No ROM loaded yet</small></button>
+      <button class="switch" id="mPatch" disabled><span>MissingNo. starter patch<small id="patchInfo">Needs Pokémon Yellow (US/Europe)</small></span><em id="patchState">OFF</em></button>
+    </section>
+    <section>
+      <h2>SAVES</h2>
+      <p class="note">The game's own SAVE is stored on this phone automatically. Export it now and then as a backup.</p>
+      <div class="row">
+        <button id="mState">Quick save<small>Snapshot right now</small></button>
+        <button id="mLoadState">Quick load<small id="stateInfo">No snapshot</small></button>
+      </div>
+      <div class="row">
+        <button id="mExport">Export save<small>.zip with a .sav</small></button>
+        <button id="mImport">Import save<small>.sav or .srm file</small></button>
+      </div>
+      <button id="mRom">Download patched ROM<small>.zip for apps like Delta</small></button>
+    </section>
+    <section>
+      <h2>SOUND</h2>
+      <button class="switch" id="mSound"><span>Sound<small>Also plays with the silent switch on</small></span><em id="soundState" class="yes">ON</em></button>
+    </section>
+    <p class="note">Keyboard: arrows move, <code>X</code> = A, <code>Z</code> = B, <code>Enter</code> = Start, <code>Shift</code> = Select, hold <code>Space</code> for fast.</p>
+    <button id="mClose">Close</button>
+  </div>
+</div>
+
+<input type="file" id="romFile" accept=".gb,.gbc,.zip,application/octet-stream">
+<input type="file" id="savFile" accept=".sav,.srm,application/octet-stream">
+<div class="toast" id="toast" hidden></div>
+
+<script src="gb-core.js"></script>
+<script>
+'use strict';
+const YELLOW_SHA1 = 'cc7d03262ebfaf2f06772c1a480c7d9d5f4a38e1';
+const PATCH_B64 = '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';
+const FRAME_MS = 1000 / 59.7275;
+const KEYS = { right: 0, left: 1, up: 2, down: 3, a: 4, b: 5, select: 6, start: 7 };
+const $ = (id) => document.getElementById(id);
+
+// ------------------------------------------------------------ storage (IndexedDB, per device)
+const store = (() => {
+  let dbp = null;
+  const open = () => dbp || (dbp = new Promise((res, rej) => {
+    const r = indexedDB.open('missingno-yellow', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('kv');
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  }));
+  const tx = async (mode, fn) => {
+    const db = await open();
+    return new Promise((res, rej) => {
+      const t = db.transaction('kv', mode);
+      const req = fn(t.objectStore('kv'));
+      t.oncomplete = () => res(req && req.result);
+      t.onerror = t.onabort = () => rej(t.error);
+    });
+  };
+  return {
+    async get(k) { try { return await tx('readonly', (s) => s.get(k)); } catch (e) { return undefined; } },
+    async set(k, v) { try { await tx('readwrite', (s) => s.put(v, k)); return true; } catch (e) { return false; } },
+  };
+})();
+
+// ------------------------------------------------------------ helpers
+function toast(msg, ms = 2600) {
+  const t = $('toast'); t.textContent = msg; t.hidden = false;
+  clearTimeout(toast.timer); toast.timer = setTimeout(() => { t.hidden = true; }, ms);
+}
+async function sha1(bytes) {
+  const h = await crypto.subtle.digest('SHA-1', bytes);
+  return Array.from(new Uint8Array(h), (b) => b.toString(16).padStart(2, '0')).join('');
+}
+function applyIps(rom, patch) {
+  const out = new Uint8Array(rom);
+  const tag = String.fromCharCode(...patch.subarray(0, 5));
+  if (tag !== 'PATCH') throw new Error('bad patch');
+  let p = 5;
+  while (!(patch[p] === 0x45 && patch[p + 1] === 0x4f && patch[p + 2] === 0x46)) {
+    const o = (patch[p] << 16) | (patch[p + 1] << 8) | patch[p + 2];
+    const size = (patch[p + 3] << 8) | patch[p + 4];
+    p += 5;
+    if (size === 0) {
+      const n = (patch[p] << 8) | patch[p + 1];
+      out.fill(patch[p + 2], o, o + n); p += 3;
+    } else {
+      out.set(patch.subarray(p, p + size), o); p += size;
+    }
+  }
+  return out;
+}
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; }
+  return t;
+})();
+function crc32(b) { let c = 0xFFFFFFFF; for (let i = 0; i < b.length; i++) c = CRC_TABLE[(c ^ b[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+function makeZip(name, data) {
+  const enc = new TextEncoder().encode(name);
+  const crc = crc32(data);
+  const lh = new DataView(new ArrayBuffer(30));
+  lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint32(14, crc, true);
+  lh.setUint32(18, data.length, true); lh.setUint32(22, data.length, true); lh.setUint16(26, enc.length, true);
+  const cd = new DataView(new ArrayBuffer(46));
+  cd.setUint32(0, 0x02014b50, true); cd.setUint16(4, 20, true); cd.setUint16(6, 20, true); cd.setUint32(16, crc, true);
+  cd.setUint32(20, data.length, true); cd.setUint32(24, data.length, true); cd.setUint16(28, enc.length, true);
+  const cdOff = 30 + enc.length + data.length;
+  const end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true); end.setUint16(8, 1, true); end.setUint16(10, 1, true);
+  end.setUint32(12, 46 + enc.length, true); end.setUint32(16, cdOff, true);
+  return new Blob([lh, enc, data, cd, enc, end]);
+}
+function unzipFirst(bytes) {
+  // Minimal reader for stored or deflated single ROM files in a .zip.
+  const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let p = 0;
+  while (p + 30 <= bytes.length && dv.getUint32(p, true) === 0x04034b50) {
+    const method = dv.getUint16(p + 8, true), csize = dv.getUint32(p + 18, true);
+    const nlen = dv.getUint16(p + 26, true), xlen = dv.getUint16(p + 28, true);
+    const name = new TextDecoder().decode(bytes.subarray(p + 30, p + 30 + nlen));
+    const start = p + 30 + nlen + xlen;
+    if (/\.(gbc?|sgb)$/i.test(name)) return { name, method, data: bytes.subarray(start, start + csize) };
+    p = start + csize;
+  }
+  return null;
+}
+async function inflateRaw(data) {
+  const ds = new DecompressionStream('deflate-raw');
+  const buf = await new Response(new Blob([data]).stream().pipeThrough(ds)).arrayBuffer();
+  return new Uint8Array(buf);
+}
+function sramSize(rom) {
+  return ({ 0: 0, 1: 0x800, 2: 0x2000, 3: 0x8000, 4: 0x20000, 5: 0x10000 })[rom[0x149]] || 0x8000;
+}
+function romTitle(rom) {
+  let s = ''; for (let i = 0x134; i < 0x143; i++) { if (!rom[i]) break; s += String.fromCharCode(rom[i]); }
+  return s.trim() || 'Game Boy game';
+}
+
+// ------------------------------------------------------------ audio
+const audio = {
+  ctx: null, on: true, sink: null,
+  ensure() {
+    if (!this.ctx) {
+      try {
+        if (navigator.audioSession) navigator.audioSession.type = 'playback';
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+      } catch (e) { this.ctx = null; }
+    }
+    if (this.ctx && this.ctx.state !== 'running') this.ctx.resume().catch(() => {});
+    return this.ctx;
+  },
+};
+function AudioSink(channels, sampleRate, minBuf, maxBuf, underrun, volume, fail) {
+  const ctx = audio.ctx;
+  if (!ctx) { fail && fail(); return; }
+  if (audio.sink) audio.sink.close();
+  audio.sink = this;
+  this.inRate = sampleRate; this.volume = volume;
+  this.size = 1 << 16; this.buf = new Float32Array(this.size); this.r = 0; this.count = 0;
+  this.muted = false; this.pos = 0; this.lastL = 0; this.lastR = 0;
+  this.node = ctx.createScriptProcessor(2048, 1, 2);
+  this.node.onaudioprocess = (e) => this.fill(e.outputBuffer);
+  this.node.connect(ctx.destination);
+}
+AudioSink.prototype = {
+  close() { try { this.node.disconnect(); } catch (e) {} },
+  writeAudioNoCallback(b) {
+    if (this.muted) return;
+    const n = Math.min(b.length, this.size - this.count);
+    let w = (this.r + this.count) % this.size;
+    for (let i = 0; i < n; i++) { this.buf[w] = b[i]; w = (w + 1) % this.size; }
+    this.count += n;
+  },
+  remainingBuffer() { return this.muted ? 1 << 20 : this.count; },
+  changeVolume(v) { this.volume = v; },
+  fill(out) {
+    const L = out.getChannelData(0), R = out.getChannelData(1);
+    const step = this.inRate / out.sampleRate;
+    const vol = audio.on && !this.muted ? this.volume : 0;
+    for (let i = 0; i < L.length; i++) {
+      if (this.count >= 4) {
+        const f = this.pos, j = this.r, k = (this.r + 2) % this.size;
+        this.lastL = this.buf[j] + (this.buf[k] - this.buf[j]) * f;
+        this.lastR = this.buf[j + 1] + (this.buf[k + 1] - this.buf[j + 1]) * f;
+        this.pos += step;
+        while (this.pos >= 1 && this.count >= 4) { this.pos -= 1; this.r = (this.r + 2) % this.size; this.count -= 2; }
+      }
+      L[i] = this.lastL * vol; R[i] = this.lastR * vol;
+    }
+  },
+};
+
+// ------------------------------------------------------------ emulator
+const emu = {
+  gb: null, rom: null, orig: null, sha: '', patched: false, key: '', running: false, fast: false,
+  raf: 0, last: 0, acc: 0, sramSig: 0, wake: null,
+};
+const canvas = $('lcd');
+
+function gameKey() { return emu.sha + (emu.patched ? ':missingno' : ''); }
+
+async function boot() {
+  stop();
+  emu.key = gameKey();
+  const saved = await store.get('sram:' + emu.key);
+  const gb = new GameBoyCore(canvas, emu.rom, {
+    bootRom: false, sound: audio.ctx ? AudioSink : null, interval: FRAME_MS,
+    imageSmoothing: false, drawEvents: false, volume: 1,
+  });
+  gb.openMBC = () => {
+    const full = new Uint8Array(0x20000);
+    if (saved) full.set(saved.subarray(0, 0x20000));
+    return Array.from(full);
+  };
+  gb.on('error', (e) => toast('Emulator stopped: ' + (e && e.message || e)));
+  gb.start();
+  gb.stopEmulator &= 1;
+  canvas.style.imageRendering = 'pixelated';
+  emu.gb = gb;
+  emu.sramSig = sig(gb.MBCRam);
+  $('insert').hidden = true;
+  $('led').classList.add('on');
+  updateMenu();
+  start();
+}
+function start() {
+  if (!emu.gb || emu.running) return;
+  emu.running = true; emu.last = performance.now(); emu.acc = 0;
+  emu.raf = requestAnimationFrame(tick);
+  if (navigator.wakeLock) navigator.wakeLock.request('screen').then((w) => { emu.wake = w; }).catch(() => {});
+}
+function stop() {
+  emu.running = false; cancelAnimationFrame(emu.raf);
+  if (emu.wake) { emu.wake.release().catch(() => {}); emu.wake = null; }
+}
+function tick(t) {
+  if (!emu.running) return;
+  emu.raf = requestAnimationFrame(tick);
+  const fast = emu.fast;
+  if (audio.sink) audio.sink.muted = fast;
+  emu.acc += Math.min(100, t - emu.last) * (fast ? 4 : 1);
+  emu.last = t;
+  let n = 0;
+  while (emu.acc >= FRAME_MS && n < 10) { emu.gb.stopEmulator |= 1; emu.gb.run(); emu.acc -= FRAME_MS; n++; }
+  if (n === 10) emu.acc = 0;
+}
+function sig(a) { let h = 0; for (let i = 0; i < a.length; i += 7) h = (h * 31 + a[i]) | 0; return h; }
+async function persistSram(force) {
+  if (!emu.gb || !emu.gb.MBCRam || !emu.gb.MBCRam.length) return;
+  const s = sig(emu.gb.MBCRam);
+  if (!force && s === emu.sramSig) return;
+  emu.sramSig = s;
+  await store.set('sram:' + emu.key, new Uint8Array(emu.gb.MBCRam));
+}
+setInterval(() => persistSram(false), 3000);
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { persistSram(true); stop(); } else if (emu.gb && $('sheetWrap').hidden) start();
+});
+window.addEventListener('pagehide', () => persistSram(true));
+
+async function useRom(bytes, name) {
+  let rom = new Uint8Array(bytes);
+  if (rom[0] === 0x50 && rom[1] === 0x4b) {
+    const z = unzipFirst(rom);
+    if (!z) { toast('That .zip has no Game Boy ROM inside.'); return; }
+    rom = z.method === 8 ? await inflateRaw(z.data) : new Uint8Array(z.data);
+    name = z.name;
+  }
+  if (rom.length < 0x8000) { toast('That file is too small to be a Game Boy ROM.'); return; }
+  emu.orig = rom;
+  emu.sha = await sha1(rom);
+  const settings = (await store.get('settings')) || {};
+  emu.patched = emu.sha === YELLOW_SHA1 && settings.patch !== false;
+  emu.name = name || romTitle(rom);
+  buildRom();
+  await store.set('rom', { name: emu.name, bytes: rom });
+  if (emu.sha === YELLOW_SHA1) toast(emu.patched ? 'Pokémon Yellow found. MissingNo. patch applied.' : 'Pokémon Yellow found. Playing unpatched.');
+  else toast(romTitle(rom) + ' loaded. The MissingNo. patch only fits Pokémon Yellow (US/Europe).', 4000);
+  showTapOrBoot();
+}
+function buildRom() {
+  emu.rom = emu.patched ? applyIps(emu.orig, Uint8Array.from(atob(PATCH_B64), (c) => c.charCodeAt(0))) : emu.orig;
+}
+function showTapOrBoot() {
+  $('insert').hidden = true;
+  if (audio.on && (!audio.ctx || audio.ctx.state !== 'running')) { $('tap').hidden = false; } else { boot(); }
+}
+$('tap').addEventListener('click', () => { $('tap').hidden = true; if (audio.on) audio.ensure(); boot(); });
+
+// ------------------------------------------------------------ controls
+const held = new Set();
+function setKeys(next) {
+  for (const k of held) if (!next.has(k)) release(k);
+  for (const k of next) if (!held.has(k)) press(k);
+}
+const pressedAt = {};
+function press(k) {
+  held.add(k); pressedAt[k] = performance.now();
+  if (k === 'ff') { emu.fast = true; $('ffPill').classList.add('on'); return; }
+  if (emu.gb) emu.gb.JoyPadEvent(KEYS[k], true);
+  paint(k, true);
+}
+function release(k) {
+  held.delete(k);
+  // Keep every press down for at least ~3 frames so quick taps are never missed.
+  const wait = 50 - (performance.now() - (pressedAt[k] || 0));
+  if (wait > 0) { setTimeout(() => { if (!held.has(k)) release(k); }, wait); return; }
+  if (k === 'ff') { emu.fast = false; $('ffPill').classList.remove('on'); return; }
+  if (emu.gb) emu.gb.JoyPadEvent(KEYS[k], false);
+  paint(k, false);
+}
+function paint(k, on) {
+  document.querySelectorAll(`[data-key="${k}"],[data-dir="${k}"]`).forEach((el) => el.classList.toggle('on', on));
+}
+const pointers = new Map();
+function keysAt(x, y) {
+  const out = [];
+  const d = $('dpad').getBoundingClientRect();
+  const cx = d.left + d.width / 2, cy = d.top + d.height / 2;
+  const dx = x - cx, dy = y - cy, r = d.width / 2;
+  if (Math.abs(dx) < r * 1.25 && Math.abs(dy) < r * 1.25) {
+    if (Math.hypot(dx, dy) > r * 0.18) {
+      const ang = Math.atan2(dy, dx) * 180 / Math.PI; // 0 = right, 90 = down
+      if (ang > -67.5 && ang < 67.5) out.push('right');
+      if (ang > 112.5 || ang < -112.5) out.push('left');
+      if (ang > 22.5 && ang < 157.5) out.push('down');
+      if (ang < -22.5 && ang > -157.5) out.push('up');
+    }
+    return out;
+  }
+  let best = null, bestD = Infinity;
+  document.querySelectorAll('.pad [data-key]').forEach((el) => {
+    const b = el.getBoundingClientRect();
+    const pad = el.classList.contains('pill') ? 14 : 10;
+    if (x >= b.left - pad && x <= b.right + pad && y >= b.top - pad && y <= b.bottom + pad) {
+      const dd = Math.hypot(x - (b.left + b.width / 2), y - (b.top + b.height / 2));
+      if (dd < bestD) { bestD = dd; best = el.dataset.key; }
+    }
+  });
+  if (best) out.push(best);
+  return out;
+}
+function recompute() {
+  const next = new Set(keyboardHeld);
+  for (const p of pointers.values()) for (const k of keysAt(p.x, p.y)) next.add(k);
+  setKeys(next);
+}
+const padEl = $('shell');
+padEl.addEventListener('pointerdown', (e) => {
+  if (e.target.closest('button, .screen, .top')) return;
+  e.preventDefault();
+  if (audio.on) audio.ensure();
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (e.pointerType === 'touch' && e.target.releasePointerCapture) { try { e.target.releasePointerCapture(e.pointerId); } catch (err) {} }
+  recompute();
+});
+padEl.addEventListener('pointermove', (e) => { if (pointers.has(e.pointerId)) { pointers.set(e.pointerId, { x: e.clientX, y: e.clientY }); recompute(); } });
+const endPointer = (e) => { if (pointers.delete(e.pointerId)) recompute(); };
+padEl.addEventListener('pointerup', endPointer);
+padEl.addEventListener('pointercancel', endPointer);
+document.addEventListener('touchmove', (e) => { if (e.target.closest('.shell')) e.preventDefault(); }, { passive: false });
+document.addEventListener('gesturestart', (e) => e.preventDefault());
+document.addEventListener('dblclick', (e) => e.preventDefault());
+
+const keyboardHeld = new Set();
+const KEYMAP = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', KeyW: 'up', KeyS: 'down', KeyA: 'left', KeyD: 'right',
+  KeyX: 'a', KeyK: 'a', KeyZ: 'b', KeyJ: 'b', Enter: 'start', ShiftLeft: 'select', ShiftRight: 'select', Backspace: 'select', Space: 'ff' };
+window.addEventListener('keydown', (e) => {
+  const k = KEYMAP[e.code]; if (!k || !$('sheetWrap').hidden) return;
+  e.preventDefault(); if (audio.on) audio.ensure();
+  keyboardHeld.add(k); recompute();
+});
+window.addEventListener('keyup', (e) => { const k = KEYMAP[e.code]; if (!k) return; keyboardHeld.delete(k); recompute(); });
+window.addEventListener('blur', () => { keyboardHeld.clear(); pointers.clear(); recompute(); });
+
+// ------------------------------------------------------------ menu
+const downloadsP = (window.claude && window.claude.use) ? window.claude.use('downloads') : Promise.resolve(null);
+let downloads = null;
+downloadsP.then((d) => { downloads = d; updateMenu(); }).catch(() => {});
+
+function openMenu() { $('sheetWrap').hidden = false; stop(); updateMenu(); $('mClose').focus(); }
+function closeMenu() { $('sheetWrap').hidden = true; if (emu.gb) start(); }
+$('menuBtn').addEventListener('click', openMenu);
+$('mClose').addEventListener('click', closeMenu);
+$('sheetWrap').addEventListener('click', (e) => { if (e.target === $('sheetWrap')) closeMenu(); });
+
+async function updateMenu() {
+  const has = !!emu.gb;
+  $('romInfo').textContent = emu.orig ? `${emu.name} · ${emu.patched ? 'MissingNo. patch on' : 'unpatched'}` : 'No ROM loaded yet';
+  const yellow = emu.sha === YELLOW_SHA1;
+  $('mPatch').disabled = !yellow;
+  $('patchInfo').textContent = yellow ? 'Level 99 MissingNo. starter that follows you. Separate save from the unpatched game.' : 'Needs Pokémon Yellow (US/Europe)';
+  $('patchState').textContent = emu.patched ? 'ON' : 'OFF';
+  $('patchState').classList.toggle('yes', emu.patched);
+  $('soundState').textContent = audio.on ? 'ON' : 'OFF';
+  $('soundState').classList.toggle('yes', audio.on);
+  ['mState', 'mLoadState', 'mImport'].forEach((id) => { $(id).disabled = !has; });
+  $('mExport').disabled = !has || !downloads;
+  $('mRom').disabled = !emu.patched || !downloads;
+  if (!downloads) { $('mExport').querySelector('small').textContent = 'Not available in this view'; $('mRom').querySelector('small').textContent = 'Not available in this view'; }
+  const st = has ? await store.get('state:' + emu.key) : null;
+  $('stateInfo').textContent = st ? 'Saved ' + new Date(st.at).toLocaleString([], { hour: 'numeric', minute: '2-digit', month: 'short', day: 'numeric' }) : 'No snapshot';
+  $('mLoadState').disabled = !has || !st;
+}
+
+$('loadBtn').addEventListener('click', () => $('romFile').click());
+$('mLoad').addEventListener('click', () => $('romFile').click());
+$('romFile').addEventListener('change', async (e) => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  if (audio.on) audio.ensure();
+  await persistSram(true);
+  closeMenu();
+  await useRom(await f.arrayBuffer(), f.name);
+});
+$('mPatch').addEventListener('click', async () => {
+  if (emu.sha !== YELLOW_SHA1) return;
+  await persistSram(true);
+  emu.patched = !emu.patched;
+  const settings = (await store.get('settings')) || {};
+  settings.patch = emu.patched; await store.set('settings', settings);
+  buildRom();
+  await boot(); stop(); updateMenu();
+  toast(emu.patched ? 'MissingNo. patch on. Restarted.' : 'Patch off. Restarted with the original game.');
+});
+$('mSound').addEventListener('click', () => {
+  audio.on = !audio.on;
+  if (audio.on) { audio.ensure(); if (emu.gb && !audio.sink) { emu.gb.opts.sound = AudioSink; emu.gb.initSound(); } }
+  store.get('settings').then((s) => { s = s || {}; s.sound = audio.on; store.set('settings', s); });
+  updateMenu();
+});
+$('mState').addEventListener('click', async () => {
+  const s = emu.gb.saveState(); s[0] = null;
+  const ok = await store.set('state:' + emu.key, { at: Date.now(), state: s });
+  toast(ok ? 'Snapshot saved.' : 'Could not save a snapshot in this browser.');
+  closeMenu();
+});
+$('mLoadState').addEventListener('click', async () => {
+  const st = await store.get('state:' + emu.key);
+  if (!st) return;
+  const s = st.state.slice(); s[0] = emu.rom;
+  emu.gb.returnFromState(s); emu.gb.stopEmulator &= 1;
+  canvas.style.imageRendering = 'pixelated';
+  toast('Snapshot loaded.');
+  closeMenu();
+});
+$('mExport').addEventListener('click', async () => {
+  await persistSram(true);
+  const n = sramSize(emu.rom);
+  const data = new Uint8Array(emu.gb.MBCRam).slice(0, n);
+  const base = emu.patched ? 'Pokemon Yellow MissingNo' : romTitle(emu.orig);
+  try {
+    await downloads.save({ filename: base + ' save.zip', data: makeZip(base + '.sav', data) });
+    toast('Save exported.');
+  } catch (err) { if (err && err.code !== 'declined') toast('Could not export: ' + (err.message || err.code)); }
+});
+$('mImport').addEventListener('click', () => $('savFile').click());
+$('savFile').addEventListener('change', async (e) => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  const data = new Uint8Array(await f.arrayBuffer());
+  if (!data.length || data.length > 0x20000) { toast('That does not look like a battery save.'); return; }
+  await store.set('sram:' + emu.key, data);
+  closeMenu();
+  await boot();
+  toast('Save imported. Pick CONTINUE on the title screen.');
+});
+$('mRom').addEventListener('click', async () => {
+  try {
+    await downloads.save({ filename: 'Pokemon Yellow MissingNo.zip', data: makeZip('Pokemon Yellow MissingNo.gbc', emu.rom) });
+    toast('Patched ROM saved.');
+  } catch (err) { if (err && err.code !== 'declined') toast('Could not save: ' + (err.message || err.code)); }
+});
+
+// ------------------------------------------------------------ idle screen glitch block
+(function glitchIdle() {
+  const c = $('glitch').getContext('2d');
+  const shades = ['#c9cfb8', '#8c9870', '#4e5a3a', '#1f2616'];
+  let seed = 7;
+  const rnd = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+  function draw() {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const empty = x < 7 && y < 6;
+      c.fillStyle = empty ? shades[0] : shades[1 + Math.floor(rnd() * 3)];
+      c.fillRect(x, y, 1, 1);
+    }
+  }
+  draw();
+  if (!matchMedia('(prefers-reduced-motion: reduce)').matches) setInterval(() => { if (!$('insert').hidden) draw(); }, 180);
+})();
+
+// ------------------------------------------------------------ start-up: reload the last ROM
+(async () => {
+  const settings = (await store.get('settings')) || {};
+  if (settings.sound === false) audio.on = false;
+  const saved = await store.get('rom');
+  if (saved && saved.bytes) {
+    emu.orig = new Uint8Array(saved.bytes); emu.name = saved.name;
+    emu.sha = await sha1(emu.orig);
+    emu.patched = emu.sha === YELLOW_SHA1 && settings.patch !== false;
+    buildRom();
+    showTapOrBoot();
+  }
+  updateMenu();
+})();
+</script>

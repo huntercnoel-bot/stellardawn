@@ -13,3 +13,9 @@ site/debug.json
 site/retailers.json
 site/retailers-debug.json
 site/history.json
+
+# Never commit game files or saves (the Game Boy player loads them on-device)
+*.gb
+*.gbc
+*.sav
+*.srm
