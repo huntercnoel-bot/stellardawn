@@ -1,0 +1,372 @@
+{
+ "generated": "2026-09-25T16:51:35+00:00",
+ "client": "curl_cffi",
+ "pickup_96gb": {
+  "pickup-message": {
+   "store_count": 12,
+   "first_stores": [
+    {
+     "storeNumber": "R095",
+     "storeName": "Fifth Avenue",
+     "hoursUrl": "http://www.apple.com/retail/fifthavenue",
+     "reservationUrl": "http://www.apple.com/retail/fifthavenue",
+     "makeReservationUrl": "http://www.apple.com/retail/fifthavenue",
+     "directionsUrl": "http://www.apple.com/retail/fifthavenue",
+     "partsAvailability": {
+      "MHL74LL/A": {
+       "storePickEligible": true,
+       "pickupSearchQuote": "Currently unavailable",
+       "partNumber": "MHL74LL/A",
+       "purchaseOption": "",
+       "ctoOptions": "",
+       "pickupDisplay": "ineligible",
+       "pickupType": "In-Store Pickup",
+       "messageTypes": {
+        "regular": {
+         "storeSearchEnabled": true,
+         "storePickupLabel": "Pickup:",
+         "storeSelectionEnabled": false,
+         "storePickupQuote": "Apple Store Pickup is currently unavailable",
+         "storePickupLinkText": "Check availability",
+         "storePickupProductTitle": "Mac Studio",
+         "basePartNumber": "MHL74"
+        }
+       }
+      }
+     }
+    },
+    {
+     "storeNumber": "R415",
+     "storeName": "Grand Central",
+     "hoursUrl": "http://www.apple.com/retail/grandcentral",
+     "reservationUrl": "http://www.apple.com/retail/grandcentral",
+     "makeReservationUrl": "http://www.apple.com/retail/grandcentral",
+     "directionsUrl": "http://www.apple.com/retail/grandcentral",
+     "partsAvailability": {
+      "MHL74LL/A": {
+       "storePickEligible": true,
+       "pickupSearchQuote": "Currently unavailable",
+       "partNumber": "MHL74LL/A",
+       "purchaseOption": "",
+       "ctoOptions": "",
+       "pickupDisplay": "ineligible",
+       "pickupType": "In-Store Pickup",
+       "messageTypes": {
+        "regular": {
+         "storeSearchEnabled": true,
+         "storePickupLabel": "Pickup:",
+         "storeSelectionEnabled": false,
+         "storePickupQuote": "Apple Store Pickup is currently unavailable",
+         "storePickupLinkText": "Check availability",
+         "storePickupProductTitle": "Mac Studio",
+         "basePartNumber": "MHL74"
+        }
+       }
+      }
+     }
+    }
+   ],
+   "top_level_keys": [
+    "availability",
+    "availabilityStores",
+    "filteredTopStore",
+    "legendLabelText",
+    "little",
+    "location",
+    "notAvailableNearOneStore",
+    "notAvailableNearby",
+    "overlayInitiatedFromWarmStart",
+    "stores",
+    "storesCount",
+    "viewDetailsText",
+    "viewMoreHoursLinkText",
+    "viewMoreHoursVoText",
+    "warmDudeWithAPU"
+   ],
+   "store_keys": [
+    "address",
+    "city",
+    "country",
+    "directionsUrl",
+    "hoursUrl",
+    "makeReservationUrl",
+    "partsAvailability",
+    "phoneNumber",
+    "pickupOptionsDetails",
+    "pickupTypeAvailabilityText",
+    "rank",
+    "reservationUrl",
+    "retailStore",
+    "state",
+    "storeDistanceVoText",
+    "storeDistanceWithUnit",
+    "storeEmail",
+    "storeHours",
+    "storeImageUrl",
+    "storeListNumber",
+    "storeName",
+    "storeNumber",
+    "storedistance",
+    "storelatitude",
+    "storelistnumber",
+    "storelongitude"
+   ]
+  },
+  "fulfillment-messages": {
+   "error": "HTTP 541: Apple rate-limited this runner; results carried forward"
+  }
+ },
+ "pickup_controls": {
+  "pickup-message": {
+   "error": "HTTP 541: Apple rate-limited this runner; results carried forward"
+  },
+  "fulfillment-messages": {
+   "error": "skipped: Apple refused the previous requests"
+  }
+ },
+ "pages": {
+  "96gb": {
+   "url": "https://www.apple.com/shop/buy-mac/mac-studio/m5-ultra-chip-30-core-cpu-64-core-gpu-96gb-memory-1tb-storage",
+   "length": 570339,
+   "title": "Buy Mac Studio, M5\u00a0Ultra Chip, 30-core CPU, 64-core GPU, 96GB memory, 1TB storage - Apple",
+   "ro_codes": [
+    "RO_MACSTUDIO_M5MAX_M5ULTRA_BET_BES_2026"
+   ],
+   "z_codes": [],
+   "standard_parts": [
+    "MHL64LL/A",
+    "MHL74LL/A"
+   ],
+   "option_code_count": 13,
+   "option_codes": [
+    "065-CLPX",
+    "065-CLPY",
+    "065-CLQ0",
+    "065-CLQ1",
+    "065-CLQ2",
+    "065-CLQ3",
+    "065-CLQ5",
+    "065-CLQW",
+    "065-CLQX",
+    "065-CLT7",
+    "065-CLT8",
+    "065-CLT9",
+    "065-CLTW"
+   ],
+   "near_part": [
+    "/shop/buy-mac/mac-studio/m5-ultra-chip-30-core-cpu-64-core-gpu-96gb-memory-1tb-storage\",\"offers\":[{\"@type\":\"Offer\",\"priceCurrency\":\"USD\",\"price\":5499.00,\"sku\":\"MHL74LL/A\",\"shippingDetails\":{\"@type\":\"OfferShippingDetails\",\"shippingRate\":{\"@type\":\"MonetaryAmount\",\"value\":0,\"currency\":\"USD\"}},\"hasMerchantReturnPolicy\":{\"@type\":\"",
+    "ame\":\"AOS: US Consumer\",\"langAttribute\":\"en-us\",\"evarDataNodesEnabled\":true},\"currency\":\"USD\",\"area\":\"shop\",\"category\":\"mac_studio\",\"products\":[{\"sku\":\"MHL74\",\"partNumber\":\"MHL74LL/A\",\"price\":{\"fullPrice\":5499.00},\"category\":\"mac\",\"name\":\"Mac Studio\"}],\"sectionEngagement\":[[\"[data-analytics-section='memory-dimensionMemory']\",\"me",
+    " Consumer\",\"langAttribute\":\"en-us\",\"evarDataNodesEnabled\":true},\"currency\":\"USD\",\"area\":\"shop\",\"category\":\"mac_studio\",\"products\":[{\"sku\":\"MHL74\",\"partNumber\":\"MHL74LL/A\",\"price\":{\"fullPrice\":5499.00},\"category\":\"mac\",\"name\":\"Mac Studio\"}],\"sectionEngagement\":[[\"[data-analytics-section='memory-dimensionMemory']\",\"memory\"],[\".",
+    "ummary']\",\"summary\"]],\"buyflow\":{\"step\":\"select\",\"lineOfBusiness\":\"mac\",\"state\":\"warm\",\"name\":\"mac_studio\",\"userSelections\":{\"STORAGE\":{\"dimensionValue\":\"1tb\",\"partNumber\":\"065-CLQX\"},\"MEMORY\":{\"dimensionValue\":\"96gb\",\"partNumber\":\"065-CLQ5\"},\"PROCESSOR\":{\"dimensionChip\":\"m5ultra\",\"cpuCoreCount\":\"30\",\"gpuCoreCount\":\"64\"},\"PROCES",
+    "iness\":\"mac\",\"state\":\"warm\",\"name\":\"mac_studio\",\"userSelections\":{\"STORAGE\":{\"dimensionValue\":\"1tb\",\"partNumber\":\"065-CLQX\"},\"MEMORY\":{\"dimensionValue\":\"96gb\",\"partNumber\":\"065-CLQ5\"},\"PROCESSOR\":{\"dimensionChip\":\"m5ultra\",\"cpuCoreCount\":\"30\",\"gpuCoreCount\":\"64\"},\"PROCESSOR_CHIP\":\"m5ultra\"}}}}</script>\n            <script type=\"",
+    "buyabilityBootstrap = {\n                    buyabilityMessageUrl: '/shop/buyability-message',\n                    buyabilityMessageParams: {\"options\":\"option\",\"partNumbers\":\"parts\",\"store\":\"store\"}\n                };\n\n\n                window.pageLevelData.optionGroupTypeLabelBootstrap = {\"optionGroupTypeLabel\":{\"processor-dimens",
+    "\"96gb\",\"processor-dimensionChip\":\"m5ultra\",\"processor-dimensionChip-cpuCoreCount-gpuCoreCount\":\"m5ultra-30-64\",\"storage-dimensionCapacity\":\"1tb\"},\"defaultKit\":{\"part\":\"RO_MACSTUDIO_M5MAX_M5ULTRA_BET_BES_2026\",\"options\":{\"memory\":\"065-CLQ5\",\"thunderbolt\":\"065-CLT9\",\"storage\":\"065-CLQX\",\"ethernet_adapter\":\"065-CLT7\",\"countryki",
+    "{\"name\":\"product\",\"formKey\":\"product\",\"required\":false,\"reader\":{},\"writer\":{},\"definition\":{\"type\":\"Product\",\"name\":\"product\",\"form\":\"product\",\"alternateKey\":\"partNumber\",\"useLowerCase\":\"true\",\"useDashForUnderscore\":\"true\"},\"type\":\"Product\",\"example\":\"<PRODUCT>\"},\"tradeInProductId\":{\"name\":\"tradeInProductId\",\"formKey\":\"pid\",\"re"
+   ],
+   "near_ro": [
+    "processor-dimensionChip\":\"m5ultra\",\"processor-dimensionChip-cpuCoreCount-gpuCoreCount\":\"m5ultra-30-64\",\"storage-dimensionCapacity\":\"1tb\"},\"defaultKit\":{\"part\":\"RO_MACSTUDIO_M5MAX_M5ULTRA_BET_BES_2026\",\"options\":{\"memory\":\"065-CLQ5\",\"thunderbolt\":\"065-CLT9\",\"storage\":\"065-CLQX\",\"ethernet_adapter\":\"065-CLT7\",\"countrykit\":\"065-CLTW\",\"processor\":\"065-CLQ0\"}}};\n",
+    "pgrade\":true,\"svgIconKey\":\"macstudio-software_proappbundle\",\"groupIconOverride\":null,\"items\":null,\"showIncluded\":false}],\"products\":[{\"aosContainerPartNumber\":\"RO_MACSTUDIO_M5MAX_M5ULTRA_BET_BES_2026\",\"type\":\"PRECONFIGURED_BTR\",\"btrOrFdPartNumber\":\"MHL74LL/A\",\"optionGroupTypeKey\":null,\"productConfiguration\":{\"memory\":\"065-CLQ5\",\"thunderbolt\":\"065-CLT9\",\"sto",
+    "gSoon\":false,\"dimensions\":{\"processor-dimensionChip\":\"m5ultra\",\"processor-dimensionChip-cpuCoreCount-gpuCoreCount\":\"m5ultra-30-64\"}},{\"aosContainerPartNumber\":\"RO_MACSTUDIO_M5MAX_M5ULTRA_BET_BES_2026\",\"type\":\"CONFIGURABLE\",\"btrOrFdPartNumber\":null,\"optionGroupTypeKey\":null,\"productConfiguration\":{\"memory\":\"065-CLQ3\",\"thunderbolt\":\"065-CLT8\",\"storage\":\"065-C",
+    "omingSoon\":false,\"dimensions\":{\"processor-dimensionChip\":\"m5max\",\"processor-dimensionChip-cpuCoreCount-gpuCoreCount\":\"m5max-18-40\"}},{\"aosContainerPartNumber\":\"RO_MACSTUDIO_M5MAX_M5ULTRA_BET_BES_2026\",\"type\":\"PRECONFIGURED_BTR\",\"btrOrFdPartNumber\":\"MHL64LL/A\",\"optionGroupTypeKey\":null,\"productConfiguration\":{\"memory\":\"065-CLQ2\",\"thunderbolt\":\"065-CLT8\",\"sto",
+    "omingSoon\":false,\"dimensions\":{\"processor-dimensionChip\":\"m5max\",\"processor-dimensionChip-cpuCoreCount-gpuCoreCount\":\"m5max-18-32\"}},{\"aosContainerPartNumber\":\"RO_MACSTUDIO_M5MAX_M5ULTRA_BET_BES_2026\",\"type\":\"CONFIGURABLE\",\"btrOrFdPartNumber\":null,\"optionGroupTypeKey\":null,\"productConfiguration\":{\"memory\":\"065-CLQ5\",\"thunderbolt\":\"065-CLT9\",\"storage\":\"065-C"
+   ],
+   "near_pickup": [
+    "/shop/updateSEO');\n\t}\n</script>\n\n            <script crossorigin=\"anonymous\">\n        window.fulfillmentBootstrap = {\n            fulfillmentMessageUrl: \"/shop/fulfillment-messages?fae=true\",\n            fulfillmentMessageUrlAbsolute: \"https://www.apple.com/shop/fulfillment-messages?fae=true\",\n            localityLookupUrl : \"/shop/addres",
+    "tBootstrap = {\n            fulfillmentMessageUrl: \"/shop/fulfillment-messages?fae=true\",\n            fulfillmentMessageUrlAbsolute: \"https://www.apple.com/shop/fulfillment-messages?fae=true\",\n            localityLookupUrl : \"/shop/address/locality-lookup?fae=true\",\n            deliveryMessageUrl : \"/shop/fulfillment-messages?fae=true\",\n  ",
+    "pple.com/shop/fulfillment-messages?fae=true\",\n            localityLookupUrl : \"/shop/address/locality-lookup?fae=true\",\n            deliveryMessageUrl : \"/shop/fulfillment-messages?fae=true\",\n            deliveryMessageUrlAbsolute : \"https://www.apple.com/shop/fulfillment-messages?fae=true\",\n            loadingVoText: \"Loading\",\n         ",
+    "-lookup?fae=true\",\n            deliveryMessageUrl : \"/shop/fulfillment-messages?fae=true\",\n            deliveryMessageUrlAbsolute : \"https://www.apple.com/shop/fulfillment-messages?fae=true\",\n            loadingVoText: \"Loading\",\n            resultsVoText: \"Results\",\n            resultVoText: \"Result\",\n            geoLookupUrl : \"/shop/ad",
+    "          storeDetailsText: \"Store Details\",\n            closebuttonVOText: \"Close Store Details\",\n            searchHeaderAlly: \"for\",\n            url: \"/shop/fulfillment-messages?fae=true\",\n            \n                isSingleStorePickup: false,\n                singleStoreId: \"\",\n                pickupStoreAddressFormat: [[\"companyName",
+    "uctlocator-errorcontent\\\">Please try again or check back later.<\\/div>\",\n            metaURL: \"\",\n            metaSmallURL: \"\",\n            deliveryURL: \"/shop/fulfillment-messages?fae=true\",\n            pickupURL: \"\",\n            suggestionsURL: \"\",\n            fireRecommendationsAvailability: false,\n            provinceSelector: false,\n"
+   ],
+   "near_256": [
+    "lable for pickup. Lease approval is subject to eligibility and is based on creditworthiness. Monthly payments are based on the selected device and lease term. For example:</p>\n<p>For an iPhone 18 Pro 256GB with a purchase price of $1199 (excluding taxes and any trade-in credit), the typical monthly payment is $34.99 (excluding taxes and any trade-in credit) for a 24-month lease term and $49.99 (excludi",
+    "ly payment is $11.99 (excluding taxes and any trade-in credit) for a 24-month lease term and $21.99 (excluding taxes and any trade-in credit) for a 12-month lease term.</p>\n<p>For an 11-inch iPad Pro 256GB with a purchase price of $1199 (excluding taxes and any trade-in credit), the typical monthly payment is $24.99 (excluding taxes and any trade-in credit) for a 36-month lease term and $31.99 (excludi",
+    "ss=\\\"visuallyhidden\\\">&nbsp;Footnote&nbsp;</span>#</sup></as-footnote>\"}}},\"configDisplayValues\":{\"memory-dimensionMemory\":{\"64gb\":{\"header\":\"64GB\"},\"96gb\":{\"header\":\"96GB\"},\"36gb\":{\"header\":\"36GB\"},\"256gb\":{\"header\":\"256GB\"},\"48gb\":{\"header\":\"48GB\"},\"128gb\":{\"header\":\"128GB\"},\"variantOrder\":[\"36gb\",\"48gb\",\"64gb\",\"96gb\",\"128gb\",\"256gb\"]},\"storage-dimensionCapacity\":{\"512gb\":{\"header\":\"512GB\"},\"2tb\":{\"h",
+    "n\\\">&nbsp;Footnote&nbsp;</span>#</sup></as-footnote>\"}}},\"configDisplayValues\":{\"memory-dimensionMemory\":{\"64gb\":{\"header\":\"64GB\"},\"96gb\":{\"header\":\"96GB\"},\"36gb\":{\"header\":\"36GB\"},\"256gb\":{\"header\":\"256GB\"},\"48gb\":{\"header\":\"48GB\"},\"128gb\":{\"header\":\"128GB\"},\"variantOrder\":[\"36gb\",\"48gb\",\"64gb\",\"96gb\",\"128gb\",\"256gb\"]},\"storage-dimensionCapacity\":{\"512gb\":{\"header\":\"512GB\"},\"2tb\":{\"header\":\"2TB\"},\"4tb"
+   ]
+  },
+  "256gb": [
+   {
+    "url": "https://www.apple.com/shop/buy-mac/mac-studio/m5-ultra-chip-30-core-cpu-64-core-gpu-256gb-memory-1tb-storage",
+    "length": 570457,
+    "title": "Buy Mac Studio, M5\u00a0Ultra Chip, 30-core CPU, 64-core GPU, 256GB memory, 1TB storage - Apple",
+    "ro_codes": [
+     "RO_MACSTUDIO_M5MAX_M5ULTRA_BET_BES_2026"
+    ],
+    "z_codes": [
+     "Z1U4",
+     "Z1U5"
+    ],
+    "standard_parts": [
+     "MHL64LL/A",
+     "MHL74LL/A"
+    ],
+    "option_code_count": 14,
+    "option_codes": [
+     "065-CLPX",
+     "065-CLPY",
+     "065-CLQ0",
+     "065-CLQ1",
+     "065-CLQ2",
+     "065-CLQ3",
+     "065-CLQ5",
+     "065-CLQ7",
+     "065-CLQW",
+     "065-CLQX",
+     "065-CLT7",
+     "065-CLT8",
+     "065-CLT9",
+     "065-CLTW"
+    ],
+    "near_part": [
+     "ummary']\",\"summary\"]],\"buyflow\":{\"step\":\"select\",\"lineOfBusiness\":\"mac\",\"state\":\"warm\",\"name\":\"mac_studio\",\"userSelections\":{\"STORAGE\":{\"dimensionValue\":\"1tb\",\"partNumber\":\"065-CLQX\"},\"MEMORY\":{\"dimensionValue\":\"256gb\",\"partNumber\":\"065-CLQ7\"},\"PROCESSOR\":{\"dimensionChip\":\"m5ultra\",\"cpuCoreCount\":\"30\",\"gpuCoreCount\":\"64\"},\"PROCE",
+     "ness\":\"mac\",\"state\":\"warm\",\"name\":\"mac_studio\",\"userSelections\":{\"STORAGE\":{\"dimensionValue\":\"1tb\",\"partNumber\":\"065-CLQX\"},\"MEMORY\":{\"dimensionValue\":\"256gb\",\"partNumber\":\"065-CLQ7\"},\"PROCESSOR\":{\"dimensionChip\":\"m5ultra\",\"cpuCoreCount\":\"30\",\"gpuCoreCount\":\"64\"},\"PROCESSOR_CHIP\":\"m5ultra\"}}}}</script>\n            <script type=\"",
+     "buyabilityBootstrap = {\n                    buyabilityMessageUrl: '/shop/buyability-message',\n                    buyabilityMessageParams: {\"options\":\"option\",\"partNumbers\":\"parts\",\"store\":\"store\"}\n                };\n\n\n                window.pageLevelData.optionGroupTypeLabelBootstrap = {\"optionGroupTypeLabel\":{\"processor-dimens",
+     "256gb\",\"processor-dimensionChip\":\"m5ultra\",\"processor-dimensionChip-cpuCoreCount-gpuCoreCount\":\"m5ultra-30-64\",\"storage-dimensionCapacity\":\"1tb\"},\"defaultKit\":{\"part\":\"RO_MACSTUDIO_M5MAX_M5ULTRA_BET_BES_2026\",\"options\":{\"memory\":\"065-CLQ7\",\"thunderbolt\":\"065-CLT9\",\"storage\":\"065-CLQX\",\"ethernet_adapter\":\"065-CLT7\",\"countryki",
+     "{\"name\":\"product\",\"formKey\":\"product\",\"required\":false,\"reader\":{},\"writer\":{},\"definition\":{\"type\":\"Product\",\"name\":\"product\",\"form\":\"product\",\"alternateKey\":\"partNumber\",\"useLowerCase\":\"true\",\"useDashForUnderscore\":\"true\"},\"type\":\"Product\",\"example\":\"<PRODUCT>\"},\"tradeInProductId\":{\"name\":\"tradeInProductId\",\"formKey\":\"pid\",\"re",
+     "ms\":null,\"showIncluded\":false}],\"products\":[{\"aosContainerPartNumber\":\"RO_MACSTUDIO_M5MAX_M5ULTRA_BET_BES_2026\",\"type\":\"PRECONFIGURED_BTR\",\"btrOrFdPartNumber\":\"MHL74LL/A\",\"optionGroupTypeKey\":null,\"productConfiguration\":{\"memory\":\"065-CLQ5\",\"thunderbolt\":\"065-CLT9\",\"storage\":\"065-CLQX\",\"ethernet_adapter\":\"065-CLT7\",\"countryki"
+    ],
+    "near_ro": [
+     "processor-dimensionChip\":\"m5ultra\",\"processor-dimensionChip-cpuCoreCount-gpuCoreCount\":\"m5ultra-30-64\",\"storage-dimensionCapacity\":\"1tb\"},\"defaultKit\":{\"part\":\"RO_MACSTUDIO_M5MAX_M5ULTRA_BET_BES_2026\",\"options\":{\"memory\":\"065-CLQ7\",\"thunderbolt\":\"065-CLT9\",\"storage\":\"065-CLQX\",\"ethernet_adapter\":\"065-CLT7\",\"countrykit\":\"065-CLTW\",\"processor\":\"065-CLQ0\"}}};\n",
+     ",\"inst\":[0]},{\"state\":[7],\"key\":2,\"inst\":[0]}];\n\n                window.pageLevelData.affordabilityUrl= '/shop/financing/affordabilityData/overlay?fae=true&spn=RO_MACSTUDIO_M5MAX_M5ULTRA_BET_BES_2026';\n\n\n            //legalProductInformation\n            \n\n            window.pageLevelData.chat = {};\n\n            window.pageLevelData.faqSection = {};\n\n\n      ",
+     "pgrade\":true,\"svgIconKey\":\"macstudio-software_proappbundle\",\"groupIconOverride\":null,\"items\":null,\"showIncluded\":false}],\"products\":[{\"aosContainerPartNumber\":\"RO_MACSTUDIO_M5MAX_M5ULTRA_BET_BES_2026\",\"type\":\"PRECONFIGURED_BTR\",\"btrOrFdPartNumber\":\"MHL74LL/A\",\"optionGroupTypeKey\":null,\"productConfiguration\":{\"memory\":\"065-CLQ5\",\"thunderbolt\":\"065-CLT9\",\"sto",
+     "gSoon\":false,\"dimensions\":{\"processor-dimensionChip\":\"m5ultra\",\"processor-dimensionChip-cpuCoreCount-gpuCoreCount\":\"m5ultra-30-64\"}},{\"aosContainerPartNumber\":\"RO_MACSTUDIO_M5MAX_M5ULTRA_BET_BES_2026\",\"type\":\"PRECONFIGURED_BTR\",\"btrOrFdPartNumber\":\"MHL64LL/A\",\"optionGroupTypeKey\":null,\"productConfiguration\":{\"memory\":\"065-CLQ2\",\"thunderbolt\":\"065-CLT8\",\"sto",
+     "omingSoon\":false,\"dimensions\":{\"processor-dimensionChip\":\"m5max\",\"processor-dimensionChip-cpuCoreCount-gpuCoreCount\":\"m5max-18-32\"}},{\"aosContainerPartNumber\":\"RO_MACSTUDIO_M5MAX_M5ULTRA_BET_BES_2026\",\"type\":\"CONFIGURABLE\",\"btrOrFdPartNumber\":null,\"optionGroupTypeKey\":null,\"productConfiguration\":{\"memory\":\"065-CLQ3\",\"thunderbolt\":\"065-CLT8\",\"storage\":\"065-C",
+     "omingSoon\":false,\"dimensions\":{\"processor-dimensionChip\":\"m5max\",\"processor-dimensionChip-cpuCoreCount-gpuCoreCount\":\"m5max-18-40\"}},{\"aosContainerPartNumber\":\"RO_MACSTUDIO_M5MAX_M5ULTRA_BET_BES_2026\",\"type\":\"CONFIGURABLE\",\"btrOrFdPartNumber\":null,\"optionGroupTypeKey\":null,\"productConfiguration\":{\"memory\":\"065-CLQ5\",\"thunderbolt\":\"065-CLT9\",\"storage\":\"065-C"
+    ],
+    "near_pickup": [
+     "/shop/updateSEO');\n\t}\n</script>\n\n            <script crossorigin=\"anonymous\">\n        window.fulfillmentBootstrap = {\n            fulfillmentMessageUrl: \"/shop/fulfillment-messages?fae=true\",\n            fulfillmentMessageUrlAbsolute: \"https://www.apple.com/shop/fulfillment-messages?fae=true\",\n            localityLookupUrl : \"/shop/addres",
+     "tBootstrap = {\n            fulfillmentMessageUrl: \"/shop/fulfillment-messages?fae=true\",\n            fulfillmentMessageUrlAbsolute: \"https://www.apple.com/shop/fulfillment-messages?fae=true\",\n            localityLookupUrl : \"/shop/address/locality-lookup?fae=true\",\n            deliveryMessageUrl : \"/shop/fulfillment-messages?fae=true\",\n  ",
+     "pple.com/shop/fulfillment-messages?fae=true\",\n            localityLookupUrl : \"/shop/address/locality-lookup?fae=true\",\n            deliveryMessageUrl : \"/shop/fulfillment-messages?fae=true\",\n            deliveryMessageUrlAbsolute : \"https://www.apple.com/shop/fulfillment-messages?fae=true\",\n            loadingVoText: \"Loading\",\n         ",
+     "-lookup?fae=true\",\n            deliveryMessageUrl : \"/shop/fulfillment-messages?fae=true\",\n            deliveryMessageUrlAbsolute : \"https://www.apple.com/shop/fulfillment-messages?fae=true\",\n            loadingVoText: \"Loading\",\n            resultsVoText: \"Results\",\n            resultVoText: \"Result\",\n            geoLookupUrl : \"/shop/ad",
+     "          storeDetailsText: \"Store Details\",\n            closebuttonVOText: \"Close Store Details\",\n            searchHeaderAlly: \"for\",\n            url: \"/shop/fulfillment-messages?fae=true\",\n            \n                isSingleStorePickup: false,\n                singleStoreId: \"\",\n                pickupStoreAddressFormat: [[\"companyName",
+     "uctlocator-errorcontent\\\">Please try again or check back later.<\\/div>\",\n            metaURL: \"\",\n            metaSmallURL: \"\",\n            deliveryURL: \"/shop/fulfillment-messages?fae=true\",\n            pickupURL: \"\",\n            suggestionsURL: \"\",\n            fireRecommendationsAvailability: false,\n            provinceSelector: false,\n"
+    ],
+    "near_256": [
+     "crossorigin=\"anonymous\">\n\n\n            <meta name=\"viewport\" content=\"width=device-width, height=device-height, initial-scale=1\" />\n    <title>Buy Mac Studio, M5\u00a0Ultra Chip, 30-core CPU, 64-core GPU, 256GB memory, 1TB storage - Apple</title>\n    <meta charset=\"utf-8\" />\n    <meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge,chrome=1\" />    \n    <meta name=\"format-detection\" content=\"telephone=no\" />  ",
+     "<meta name=\"twitter:site\" content=\"@apple\" />\n        <meta property=\"og:locale\" content=\"en_US\" />\n        <meta property=\"og:title\" content=\"Buy Mac Studio, M5\u00a0Ultra Chip, 30-core CPU, 64-core GPU, 256GB memory, 1TB storage\" />\n        <meta name=\"robots\" content=\"max-image-preview:large\" />\n        <meta name=\"twitter:card\" content=\"summary_large_image\" />\n        <meta property=\"og:type\" content=\"p",
+     "tent=\"product\" />\n        <meta property=\"og:site_name\" content=\"Apple\" />\n        <meta property=\"og:url\" content=\"https://www.apple.com/shop/buy-mac/mac-studio/m5-ultra-chip-30-core-cpu-64-core-gpu-256gb-memory-1tb-storage\" />\n        <meta property=\"og:image\" content=\"https://store.storeimages.cdn-apple.com/1/as-images.apple.com/is/mac-studio-chip-unselect-202608-gallery-1?wid=1200&amp;hei=630&amp;f",
+     "hip-unselect-202608-gallery-1?wid=1200&amp;hei=630&amp;fmt=jpeg&amp;qlt=95&amp;.v=1786042910172\" />\n        <meta property=\"og:description\" content=\"Buy the Mac Studio desktop with the M5\u00a0Ultra chip, 256GB memory and 1TB storage. Get free shipping when you order at apple.com.\" />\n    <meta name=\"description\" content=\"Buy the Mac Studio desktop with the M5\u00a0Ultra chip, 256GB memory and 1TB storage. Get f"
+    ]
+   },
+   {
+    "url": "https://www.apple.com/shop/buy-mac/mac-studio/m5-ultra-chip-30-core-cpu-64-core-gpu-256gb-memory-2tb-storage",
+    "length": 570457,
+    "title": "Buy Mac Studio, M5\u00a0Ultra Chip, 30-core CPU, 64-core GPU, 256GB memory, 2TB storage - Apple",
+    "ro_codes": [
+     "RO_MACSTUDIO_M5MAX_M5ULTRA_BET_BES_2026"
+    ],
+    "z_codes": [
+     "Z1U4",
+     "Z1U5"
+    ],
+    "standard_parts": [
+     "MHL64LL/A",
+     "MHL74LL/A"
+    ],
+    "option_code_count": 15,
+    "option_codes": [
+     "065-CLPX",
+     "065-CLPY",
+     "065-CLQ0",
+     "065-CLQ1",
+     "065-CLQ2",
+     "065-CLQ3",
+     "065-CLQ5",
+     "065-CLQ7",
+     "065-CLQW",
+     "065-CLQX",
+     "065-CLQY",
+     "065-CLT7",
+     "065-CLT8",
+     "065-CLT9",
+     "065-CLTW"
+    ],
+    "near_part": [
+     "ummary']\",\"summary\"]],\"buyflow\":{\"step\":\"select\",\"lineOfBusiness\":\"mac\",\"state\":\"warm\",\"name\":\"mac_studio\",\"userSelections\":{\"STORAGE\":{\"dimensionValue\":\"2tb\",\"partNumber\":\"065-CLQY\"},\"MEMORY\":{\"dimensionValue\":\"256gb\",\"partNumber\":\"065-CLQ7\"},\"PROCESSOR\":{\"dimensionChip\":\"m5ultra\",\"cpuCoreCount\":\"30\",\"gpuCoreCount\":\"64\"},\"PROCE",
+     "ness\":\"mac\",\"state\":\"warm\",\"name\":\"mac_studio\",\"userSelections\":{\"STORAGE\":{\"dimensionValue\":\"2tb\",\"partNumber\":\"065-CLQY\"},\"MEMORY\":{\"dimensionValue\":\"256gb\",\"partNumber\":\"065-CLQ7\"},\"PROCESSOR\":{\"dimensionChip\":\"m5ultra\",\"cpuCoreCount\":\"30\",\"gpuCoreCount\":\"64\"},\"PROCESSOR_CHIP\":\"m5ultra\"}}}}</script>\n            <script type=\"",
+     "buyabilityBootstrap = {\n                    buyabilityMessageUrl: '/shop/buyability-message',\n                    buyabilityMessageParams: {\"options\":\"option\",\"partNumbers\":\"parts\",\"store\":\"store\"}\n                };\n\n\n                window.pageLevelData.optionGroupTypeLabelBootstrap = {\"optionGroupTypeLabel\":{\"processor-dimens",
+     "256gb\",\"processor-dimensionChip\":\"m5ultra\",\"processor-dimensionChip-cpuCoreCount-gpuCoreCount\":\"m5ultra-30-64\",\"storage-dimensionCapacity\":\"2tb\"},\"defaultKit\":{\"part\":\"RO_MACSTUDIO_M5MAX_M5ULTRA_BET_BES_2026\",\"options\":{\"memory\":\"065-CLQ7\",\"thunderbolt\":\"065-CLT9\",\"storage\":\"065-CLQY\",\"ethernet_adapter\":\"065-CLT7\",\"countryki",
+     "{\"name\":\"product\",\"formKey\":\"product\",\"required\":false,\"reader\":{},\"writer\":{},\"definition\":{\"type\":\"Product\",\"name\":\"product\",\"form\":\"product\",\"alternateKey\":\"partNumber\",\"useLowerCase\":\"true\",\"useDashForUnderscore\":\"true\"},\"type\":\"Product\",\"example\":\"<PRODUCT>\"},\"tradeInProductId\":{\"name\":\"tradeInProductId\",\"formKey\":\"pid\",\"re",
+     "ms\":null,\"showIncluded\":false}],\"products\":[{\"aosContainerPartNumber\":\"RO_MACSTUDIO_M5MAX_M5ULTRA_BET_BES_2026\",\"type\":\"PRECONFIGURED_BTR\",\"btrOrFdPartNumber\":\"MHL74LL/A\",\"optionGroupTypeKey\":null,\"productConfiguration\":{\"memory\":\"065-CLQ5\",\"thunderbolt\":\"065-CLT9\",\"storage\":\"065-CLQX\",\"ethernet_adapter\":\"065-CLT7\",\"countryki"
+    ],
+    "near_ro": [
+     "processor-dimensionChip\":\"m5ultra\",\"processor-dimensionChip-cpuCoreCount-gpuCoreCount\":\"m5ultra-30-64\",\"storage-dimensionCapacity\":\"2tb\"},\"defaultKit\":{\"part\":\"RO_MACSTUDIO_M5MAX_M5ULTRA_BET_BES_2026\",\"options\":{\"memory\":\"065-CLQ7\",\"thunderbolt\":\"065-CLT9\",\"storage\":\"065-CLQY\",\"ethernet_adapter\":\"065-CLT7\",\"countrykit\":\"065-CLTW\",\"processor\":\"065-CLQ0\"}}};\n",
+     ",\"inst\":[0]},{\"state\":[7],\"key\":2,\"inst\":[0]}];\n\n                window.pageLevelData.affordabilityUrl= '/shop/financing/affordabilityData/overlay?fae=true&spn=RO_MACSTUDIO_M5MAX_M5ULTRA_BET_BES_2026';\n\n\n            //legalProductInformation\n            \n\n            window.pageLevelData.chat = {};\n\n            window.pageLevelData.faqSection = {};\n\n\n      ",
+     "pgrade\":true,\"svgIconKey\":\"macstudio-software_proappbundle\",\"groupIconOverride\":null,\"items\":null,\"showIncluded\":false}],\"products\":[{\"aosContainerPartNumber\":\"RO_MACSTUDIO_M5MAX_M5ULTRA_BET_BES_2026\",\"type\":\"PRECONFIGURED_BTR\",\"btrOrFdPartNumber\":\"MHL74LL/A\",\"optionGroupTypeKey\":null,\"productConfiguration\":{\"memory\":\"065-CLQ5\",\"thunderbolt\":\"065-CLT9\",\"sto",
+     "gSoon\":false,\"dimensions\":{\"processor-dimensionChip\":\"m5ultra\",\"processor-dimensionChip-cpuCoreCount-gpuCoreCount\":\"m5ultra-30-64\"}},{\"aosContainerPartNumber\":\"RO_MACSTUDIO_M5MAX_M5ULTRA_BET_BES_2026\",\"type\":\"CONFIGURABLE\",\"btrOrFdPartNumber\":null,\"optionGroupTypeKey\":null,\"productConfiguration\":{\"memory\":\"065-CLQ3\",\"thunderbolt\":\"065-CLT8\",\"storage\":\"065-C",
+     "omingSoon\":false,\"dimensions\":{\"processor-dimensionChip\":\"m5max\",\"processor-dimensionChip-cpuCoreCount-gpuCoreCount\":\"m5max-18-40\"}},{\"aosContainerPartNumber\":\"RO_MACSTUDIO_M5MAX_M5ULTRA_BET_BES_2026\",\"type\":\"CONFIGURABLE\",\"btrOrFdPartNumber\":null,\"optionGroupTypeKey\":null,\"productConfiguration\":{\"memory\":\"065-CLQ5\",\"thunderbolt\":\"065-CLT9\",\"storage\":\"065-C",
+     "gSoon\":false,\"dimensions\":{\"processor-dimensionChip\":\"m5ultra\",\"processor-dimensionChip-cpuCoreCount-gpuCoreCount\":\"m5ultra-36-80\"}},{\"aosContainerPartNumber\":\"RO_MACSTUDIO_M5MAX_M5ULTRA_BET_BES_2026\",\"type\":\"PRECONFIGURED_BTR\",\"btrOrFdPartNumber\":\"MHL64LL/A\",\"optionGroupTypeKey\":null,\"productConfiguration\":{\"memory\":\"065-CLQ2\",\"thunderbolt\":\"065-CLT8\",\"sto"
+    ],
+    "near_pickup": [
+     "/shop/updateSEO');\n\t}\n</script>\n\n            <script crossorigin=\"anonymous\">\n        window.fulfillmentBootstrap = {\n            fulfillmentMessageUrl: \"/shop/fulfillment-messages?fae=true\",\n            fulfillmentMessageUrlAbsolute: \"https://www.apple.com/shop/fulfillment-messages?fae=true\",\n            localityLookupUrl : \"/shop/addres",
+     "tBootstrap = {\n            fulfillmentMessageUrl: \"/shop/fulfillment-messages?fae=true\",\n            fulfillmentMessageUrlAbsolute: \"https://www.apple.com/shop/fulfillment-messages?fae=true\",\n            localityLookupUrl : \"/shop/address/locality-lookup?fae=true\",\n            deliveryMessageUrl : \"/shop/fulfillment-messages?fae=true\",\n  ",
+     "pple.com/shop/fulfillment-messages?fae=true\",\n            localityLookupUrl : \"/shop/address/locality-lookup?fae=true\",\n            deliveryMessageUrl : \"/shop/fulfillment-messages?fae=true\",\n            deliveryMessageUrlAbsolute : \"https://www.apple.com/shop/fulfillment-messages?fae=true\",\n            loadingVoText: \"Loading\",\n         ",
+     "-lookup?fae=true\",\n            deliveryMessageUrl : \"/shop/fulfillment-messages?fae=true\",\n            deliveryMessageUrlAbsolute : \"https://www.apple.com/shop/fulfillment-messages?fae=true\",\n            loadingVoText: \"Loading\",\n            resultsVoText: \"Results\",\n            resultVoText: \"Result\",\n            geoLookupUrl : \"/shop/ad",
+     "          storeDetailsText: \"Store Details\",\n            closebuttonVOText: \"Close Store Details\",\n            searchHeaderAlly: \"for\",\n            url: \"/shop/fulfillment-messages?fae=true\",\n            \n                isSingleStorePickup: false,\n                singleStoreId: \"\",\n                pickupStoreAddressFormat: [[\"companyName",
+     "uctlocator-errorcontent\\\">Please try again or check back later.<\\/div>\",\n            metaURL: \"\",\n            metaSmallURL: \"\",\n            deliveryURL: \"/shop/fulfillment-messages?fae=true\",\n            pickupURL: \"\",\n            suggestionsURL: \"\",\n            fireRecommendationsAvailability: false,\n            provinceSelector: false,\n"
+    ],
+    "near_256": [
+     "crossorigin=\"anonymous\">\n\n\n            <meta name=\"viewport\" content=\"width=device-width, height=device-height, initial-scale=1\" />\n    <title>Buy Mac Studio, M5\u00a0Ultra Chip, 30-core CPU, 64-core GPU, 256GB memory, 2TB storage - Apple</title>\n    <meta charset=\"utf-8\" />\n    <meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge,chrome=1\" />    \n    <meta name=\"format-detection\" content=\"telephone=no\" />  ",
+     ">    \n    <meta name=\"format-detection\" content=\"telephone=no\" />        \n         <meta property=\"og:url\" content=\"https://www.apple.com/shop/buy-mac/mac-studio/m5-ultra-chip-30-core-cpu-64-core-gpu-256gb-memory-2tb-storage\" />\n        <meta name=\"robots\" content=\"max-image-preview:large\" />\n        <meta property=\"og:description\" content=\"Buy the Mac Studio desktop with the M5\u00a0Ultra chip, 256GB memor",
+     "e-gpu-256gb-memory-2tb-storage\" />\n        <meta name=\"robots\" content=\"max-image-preview:large\" />\n        <meta property=\"og:description\" content=\"Buy the Mac Studio desktop with the M5\u00a0Ultra chip, 256GB memory and 2TB storage. Get free shipping when you order at apple.com.\" />\n        <meta property=\"og:title\" content=\"Buy Mac Studio, M5\u00a0Ultra Chip, 30-core CPU, 64-core GPU, 256GB memory, 2TB storag",
+     "the M5\u00a0Ultra chip, 256GB memory and 2TB storage. Get free shipping when you order at apple.com.\" />\n        <meta property=\"og:title\" content=\"Buy Mac Studio, M5\u00a0Ultra Chip, 30-core CPU, 64-core GPU, 256GB memory, 2TB storage\" />\n        <meta property=\"og:type\" content=\"product\" />\n        <meta property=\"og:locale\" content=\"en_US\" />\n        <meta property=\"og:image\" content=\"https://store.storeimage"
+    ]
+   }
+  ],
+  "mac_studio_buy": {
+   "url": "https://www.apple.com/shop/buy-mac/mac-studio",
+   "length": 568996,
+   "title": "Shop Mac Studio - Apple",
+   "ro_codes": [
+    "RO_MACSTUDIO_M5MAX_M5ULTRA_BET_BES_2026"
+   ],
+   "z_codes": [],
+   "standard_parts": [
+    "MHL64LL/A",
+    "MHL74LL/A"
+   ],
+   "option_code_count": 13,
+   "option_codes": [
+    "065-CLPX",
+    "065-CLPY",
+    "065-CLQ0",
+    "065-CLQ1",
+    "065-CLQ2",
+    "065-CLQ3",
+    "065-CLQ5",
+    "065-CLQW",
+    "065-CLQX",
+    "065-CLT7",
+    "065-CLT8",
+    "065-CLT9",
+    "065-CLTW"
+   ],
+   "near_part": [
+    "buyabilityBootstrap = {\n                    buyabilityMessageUrl: '/shop/buyability-message',\n                    buyabilityMessageParams: {\"options\":\"option\",\"partNumbers\":\"parts\",\"store\":\"store\"}\n                };\n\n\n                window.pageLevelData.optionGroupTypeLabelBootstrap = {\"optionGroupTypeLabel\":{\"processor-dimens",
+    "{\"name\":\"product\",\"formKey\":\"product\",\"required\":false,\"reader\":{},\"writer\":{},\"definition\":{\"type\":\"Product\",\"name\":\"product\",\"form\":\"product\",\"alternateKey\":\"partNumber\",\"useLowerCase\":\"true\",\"useDashForUnderscore\":\"true\"},\"type\":\"Product\",\"example\":\"<PRODUCT>\"},\"tradeInProductId\":{\"name\":\"tradeInProductId\",\"formKey\":\"pid\",\"re",
+    "puCoreCount-gpuCoreCount\":\"m5ultra-36-80\"}},{\"aosContainerPartNumber\":\"RO_MACSTUDIO_M5MAX_M5ULTRA_BET_BES_2026\",\"type\":\"PRECONFIGURED_BTR\",\"btrOrFdPartNumber\":\"MHL74LL/A\",\"optionGroupTypeKey\":null,\"productConfiguration\":{\"memory\":\"065-CLQ5\",\"thunderbolt\":\"065-CLT9\",\"storage\":\"065-CLQX\",\"ethernet_adapter\":\"065-CLT7\",\"countryki"
+   ],
+   "near_ro": [
+    "pgrade\":true,\"svgIconKey\":\"macstudio-software_proappbundle\",\"groupIconOverride\":null,\"items\":null,\"showIncluded\":false}],\"products\":[{\"aosContainerPartNumber\":\"RO_MACSTUDIO_M5MAX_M5ULTRA_BET_BES_2026\",\"type\":\"CONFIGURABLE\",\"btrOrFdPartNumber\":null,\"optionGroupTypeKey\":null,\"productConfiguration\":{\"memory\":\"065-CLQ3\",\"thunderbolt\":\"065-CLT8\",\"storage\":\"065-C",
+    "omingSoon\":false,\"dimensions\":{\"processor-dimensionChip\":\"m5max\",\"processor-dimensionChip-cpuCoreCount-gpuCoreCount\":\"m5max-18-40\"}},{\"aosContainerPartNumber\":\"RO_MACSTUDIO_M5MAX_M5ULTRA_BET_BES_2026\",\"type\":\"CONFIGURABLE\",\"btrOrFdPartNumber\":null,\"optionGroupTypeKey\":null,\"productConfiguration\":{\"memory\":\"065-CLQ5\",\"thunderbolt\":\"065-CLT9\",\"storage\":\"065-C",
+    "gSoon\":false,\"dimensions\":{\"processor-dimensionChip\":\"m5ultra\",\"processor-dimensionChip-cpuCoreCount-gpuCoreCount\":\"m5ultra-36-80\"}},{\"aosContainerPartNumber\":\"RO_MACSTUDIO_M5MAX_M5ULTRA_BET_BES_2026\",\"type\":\"PRECONFIGURED_BTR\",\"btrOrFdPartNumber\":\"MHL74LL/A\",\"optionGroupTypeKey\":null,\"productConfiguration\":{\"memory\":\"065-CLQ5\",\"thunderbolt\":\"065-CLT9\",\"sto",
+    "gSoon\":false,\"dimensions\":{\"processor-dimensionChip\":\"m5ultra\",\"processor-dimensionChip-cpuCoreCount-gpuCoreCount\":\"m5ultra-30-64\"}},{\"aosContainerPartNumber\":\"RO_MACSTUDIO_M5MAX_M5ULTRA_BET_BES_2026\",\"type\":\"PRECONFIGURED_BTR\",\"btrOrFdPartNumber\":\"MHL64LL/A\",\"optionGroupTypeKey\":null,\"productConfiguration\":{\"memory\":\"065-CLQ2\",\"thunderbolt\":\"065-CLT8\",\"sto"
+   ],
+   "near_pickup": [
+    "/shop/updateSEO');\n\t}\n</script>\n\n            <script crossorigin=\"anonymous\">\n        window.fulfillmentBootstrap = {\n            fulfillmentMessageUrl: \"/shop/fulfillment-messages?fae=true\",\n            fulfillmentMessageUrlAbsolute: \"https://www.apple.com/shop/fulfillment-messages?fae=true\",\n            localityLookupUrl : \"/shop/addres",
+    "tBootstrap = {\n            fulfillmentMessageUrl: \"/shop/fulfillment-messages?fae=true\",\n            fulfillmentMessageUrlAbsolute: \"https://www.apple.com/shop/fulfillment-messages?fae=true\",\n            localityLookupUrl : \"/shop/address/locality-lookup?fae=true\",\n            deliveryMessageUrl : \"/shop/fulfillment-messages?fae=true\",\n  ",
+    "pple.com/shop/fulfillment-messages?fae=true\",\n            localityLookupUrl : \"/shop/address/locality-lookup?fae=true\",\n            deliveryMessageUrl : \"/shop/fulfillment-messages?fae=true\",\n            deliveryMessageUrlAbsolute : \"https://www.apple.com/shop/fulfillment-messages?fae=true\",\n            loadingVoText: \"Loading\",\n         ",
+    "-lookup?fae=true\",\n            deliveryMessageUrl : \"/shop/fulfillment-messages?fae=true\",\n            deliveryMessageUrlAbsolute : \"https://www.apple.com/shop/fulfillment-messages?fae=true\",\n            loadingVoText: \"Loading\",\n            resultsVoText: \"Results\",\n            resultVoText: \"Result\",\n            geoLookupUrl : \"/shop/ad",
+    "          storeDetailsText: \"Store Details\",\n            closebuttonVOText: \"Close Store Details\",\n            searchHeaderAlly: \"for\",\n            url: \"/shop/fulfillment-messages?fae=true\",\n            \n                isSingleStorePickup: false,\n                singleStoreId: \"\",\n                pickupStoreAddressFormat: [[\"companyName",
+    "uctlocator-errorcontent\\\">Please try again or check back later.<\\/div>\",\n            metaURL: \"\",\n            metaSmallURL: \"\",\n            deliveryURL: \"/shop/fulfillment-messages?fae=true\",\n            pickupURL: \"\",\n            suggestionsURL: \"\",\n            fireRecommendationsAvailability: false,\n            provinceSelector: false,\n"
+   ],
+   "near_256": [
+    "lable for pickup. Lease approval is subject to eligibility and is based on creditworthiness. Monthly payments are based on the selected device and lease term. For example:</p>\n<p>For an iPhone 18 Pro 256GB with a purchase price of $1199 (excluding taxes and any trade-in credit), the typical monthly payment is $34.99 (excluding taxes and any trade-in credit) for a 24-month lease term and $49.99 (excludi",
+    "ly payment is $11.99 (excluding taxes and any trade-in credit) for a 24-month lease term and $21.99 (excluding taxes and any trade-in credit) for a 12-month lease term.</p>\n<p>For an 11-inch iPad Pro 256GB with a purchase price of $1199 (excluding taxes and any trade-in credit), the typical monthly payment is $24.99 (excluding taxes and any trade-in credit) for a 36-month lease term and $31.99 (excludi",
+    "ss=\\\"visuallyhidden\\\">&nbsp;Footnote&nbsp;</span>#</sup></as-footnote>\"}}},\"configDisplayValues\":{\"memory-dimensionMemory\":{\"64gb\":{\"header\":\"64GB\"},\"96gb\":{\"header\":\"96GB\"},\"36gb\":{\"header\":\"36GB\"},\"256gb\":{\"header\":\"256GB\"},\"48gb\":{\"header\":\"48GB\"},\"128gb\":{\"header\":\"128GB\"},\"variantOrder\":[\"36gb\",\"48gb\",\"64gb\",\"96gb\",\"128gb\",\"256gb\"]},\"storage-dimensionCapacity\":{\"512gb\":{\"header\":\"512GB\"},\"2tb\":{\"h",
+    "n\\\">&nbsp;Footnote&nbsp;</span>#</sup></as-footnote>\"}}},\"configDisplayValues\":{\"memory-dimensionMemory\":{\"64gb\":{\"header\":\"64GB\"},\"96gb\":{\"header\":\"96GB\"},\"36gb\":{\"header\":\"36GB\"},\"256gb\":{\"header\":\"256GB\"},\"48gb\":{\"header\":\"48GB\"},\"128gb\":{\"header\":\"128GB\"},\"variantOrder\":[\"36gb\",\"48gb\",\"64gb\",\"96gb\",\"128gb\",\"256gb\"]},\"storage-dimensionCapacity\":{\"512gb\":{\"header\":\"512GB\"},\"2tb\":{\"header\":\"2TB\"},\"4tb"
+   ]
+  }
+ }
+}
