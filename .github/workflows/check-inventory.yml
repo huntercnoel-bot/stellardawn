@@ -124,7 +124,7 @@ jobs:
           git show FETCH_HEAD:inventory.json > previous.json 2>/dev/null || echo '{}' > previous.json
           git show FETCH_HEAD:history.json > site/history.json 2>/dev/null || echo '{}' > site/history.json
           python scripts/merge_inventory.py site/inventory.json artifacts/inventory-part-*.json \
-            --previous previous.json --history site/history.json || true
+            --previous previous.json --history site/history.json --new-events new_events.json || true
           for f in inventory.json retailers.json retailers-debug.json debug.json; do
             if [ -f "artifacts/$f" ]; then
               cp "artifacts/$f" "site/$f"
@@ -149,6 +149,12 @@ jobs:
           git add -A
           git commit -q -m "Inventory $(date -u +%Y-%m-%dT%H:%MZ)"
           git push -q -f "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" gh-pages
+
+      # Phone alerts (ntfy) for new restocks; see "alerts" in scripts/config.json.
+      - name: Send restock alerts
+        if: hashFiles('new_events.json') != ''
+        continue-on-error: true
+        run: python scripts/notify.py new_events.json site/inventory.json
 
       # GitHub's 5-minute schedule is unreliable, so each run starts the next one about
       # 5 minutes after it began, unless another run is already queued or running.
