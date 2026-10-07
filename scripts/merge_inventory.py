@@ -53,6 +53,7 @@ def main():
 
     previous, prev_stores = None, {}
     prev_path, history_path = option("--previous"), option("--history")
+    new_events_path = option("--new-events")
     if prev_path:
         try:
             raw = json.loads(Path(prev_path).read_text())
@@ -77,7 +78,12 @@ def main():
             events = json.loads(Path(history_path).read_text()).get("events", [])
         except (OSError, ValueError):
             events = []
+        before = {json.dumps(e, sort_keys=True) for e in events}
         events = history.track(packed["stores"], prev_stores, events, packed["updated"])
+        new_path = new_events_path
+        if new_path:
+            fresh = [e for e in events if json.dumps(e, sort_keys=True) not in before]
+            Path(new_path).write_text(json.dumps(fresh))
         Path(history_path).write_text(json.dumps({"updated": packed["updated"], "events": events},
                                                  separators=(",", ":")))
         print(f"history: {len(events)} events")

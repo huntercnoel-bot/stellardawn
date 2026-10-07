@@ -1,4 +1,9 @@
 {
+  "alerts": {
+    "topic": "macstudio-09e65ec0ca1d",
+    "models": ["96gb", "256gb", "128gb"],
+    "priority_area_models": ["96gb", "256gb", "128gb", "64gb"]
+  },
   "models": [
     {
       "key": "96gb",
