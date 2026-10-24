@@ -1,0 +1,10 @@
+{
+ "bb_page": {
+  "6566930": {
+   "error": "Page.goto: net::ERR_HTTP2_PROTOCOL_ERROR at https://www.bestbuy.com/site/6566930.p?skuId=6566930\nCall log:\n  - navigating to \"https://www.bestbuy.com/site/6566930.p?skuId=6566930\", waiting until \"domcontentloaded\"\n"
+  },
+  "6566932": {
+   "error": "Page.goto: net::ERR_HTTP2_PROTOCOL_ERROR at https://www.bestbuy.com/site/6566932.p?skuId=6566932\nCall log:\n  - navigating to \"https://www.bestbuy.com/site/6566932.p?skuId=6566932\", waiting until \"domcontentloaded\"\n"
+  }
+ }
+}
