@@ -13,7 +13,7 @@ in the browser, and keeps the ROM and your saves on that device only.
 
 | File | What it is |
 | --- | --- |
-| `index.html` | The player page: touch D-pad and buttons, sound, battery saves, quick save/load, save export/import, patched-ROM download. The IPS patch is embedded in it. |
+| `index.html` | The player page: a game library (upload several ROMs, switch between them, remove them), touch D-pad and buttons, sound, per-game battery saves, three save slots per game, save export/import, patched-ROM download. The IPS patch is embedded in it. |
 | `gb-core.js` | Grant Galitz's GameBoy-Online core (GPL-2.0, from the `gameboy` npm package), wrapped so it loads with a plain `<script>` tag. |
 | `patch/build_patch.py` | Builds the patch from your ROM. Every byte it replaces is checked first. |
 | `patch/gbpic.py` | Gen 1 Pokémon picture compressor/decompressor used for the new sprites. |
@@ -45,7 +45,7 @@ base64 -w0 gameboy/patch/missingno.ips   # paste into PATCH_B64 in index.html
 
 ## Playing on iPhone
 
-1. Open the published page in Safari and tap **LOAD ROM**, then pick your `.gbc` (or a `.zip` holding it).
+1. Open the published page in Safari and tap **UPLOAD ROM**, then pick one or more `.gb`/`.gbc` files (or `.zip`s holding them). Add more later from **Menu → Add a ROM**.
 2. Tap **TAP TO PLAY WITH SOUND**. The game starts with the patch applied.
 3. The in-game SAVE is written to the phone automatically. Use **Menu → Export save** now and then as a backup.
 

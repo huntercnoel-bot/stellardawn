@@ -120,6 +120,16 @@
   .sheet .switch { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
   .sheet .switch em { font-style: normal; font-family: var(--pixel); font-size: 11px; padding: 4px 8px; border-radius: 6px; background: #45444f; }
   .sheet .switch em.yes { background: var(--glitch); color: #fff; }
+  .games, .slots { display: grid; gap: 8px; }
+  .games:empty { display: none; }
+  .game, .slot { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: stretch; }
+  .slot { grid-template-columns: 1fr auto auto; align-items: center; }
+  .slot > span { font-size: 14px; font-weight: 600; }
+  .slot > span small { display: block; font-weight: 400; font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .game .play.current { border-color: var(--shell); }
+  .game .play.current small { color: var(--shell); }
+  .sheet .mini { text-align: center; padding: 10px 14px; font-size: 13px; }
+  .sheet .mini.danger { background: var(--glitch-lo); border-color: var(--glitch); }
   .note { font-size: 12px; line-height: 1.45; color: var(--muted); margin: 0; }
   .note code { font-family: ui-monospace, Menlo, monospace; font-size: 11px; color: var(--paper); }
   .toast {
@@ -156,9 +166,9 @@
         <canvas id="lcd" width="160" height="144"></canvas>
         <div class="insert" id="insert">
           <canvas class="glitchbox" id="glitch" width="16" height="16"></canvas>
-          <h1>Insert your Pokémon Yellow ROM</h1>
-          <p>Your file stays on this phone. Yellow (US/Europe) gets the MissingNo. starter patch automatically.</p>
-          <button class="cta" id="loadBtn">LOAD ROM</button>
+          <h1>Add a Game Boy ROM to start</h1>
+          <p>Your games and saves stay on this phone. Pokémon Yellow (US/Europe) gets the MissingNo. starter patch automatically.</p>
+          <button class="cta" id="loadBtn">UPLOAD ROM</button>
         </div>
         <div class="tap" id="tap" hidden>TAP TO PLAY<br>WITH SOUND</div>
       </div>
@@ -186,17 +196,15 @@
 <div class="sheet-wrap" id="sheetWrap" hidden>
   <div class="sheet" role="dialog" aria-modal="true" aria-label="Menu">
     <section>
-      <h2>CARTRIDGE</h2>
-      <button id="mLoad">Load a ROM<small id="romInfo">No ROM loaded yet</small></button>
+      <h2>GAMES</h2>
+      <div class="games" id="gameList"></div>
+      <button id="mLoad">Add a ROM<small id="romInfo">Upload a .gb, .gbc or .zip from this phone</small></button>
       <button class="switch" id="mPatch" disabled><span>MissingNo. starter patch<small id="patchInfo">Needs Pokémon Yellow (US/Europe)</small></span><em id="patchState">OFF</em></button>
     </section>
     <section>
       <h2>SAVES</h2>
-      <p class="note">The game's own SAVE is stored on this phone automatically. Export it now and then as a backup.</p>
-      <div class="row">
-        <button id="mState">Quick save<small>Snapshot right now</small></button>
-        <button id="mLoadState">Quick load<small id="stateInfo">No snapshot</small></button>
-      </div>
+      <p class="note">Each game keeps its own in-game SAVE on this phone automatically. Slots snapshot the exact moment you are in.</p>
+      <div class="slots" id="slots"></div>
       <div class="row">
         <button id="mExport">Export save<small>.zip with a .sav</small></button>
         <button id="mImport">Import save<small>.sav or .srm file</small></button>
@@ -212,7 +220,7 @@
   </div>
 </div>
 
-<input type="file" id="romFile" accept=".gb,.gbc,.zip,application/octet-stream">
+<input type="file" id="romFile" multiple accept=".gb,.gbc,.zip,application/octet-stream">
 <input type="file" id="savFile" accept=".sav,.srm,application/octet-stream">
 <div class="toast" id="toast" hidden></div>
 
@@ -246,6 +254,7 @@ const store = (() => {
   return {
     async get(k) { try { return await tx('readonly', (s) => s.get(k)); } catch (e) { return undefined; } },
     async set(k, v) { try { await tx('readwrite', (s) => s.put(v, k)); return true; } catch (e) { return false; } },
+    async del(k) { try { await tx('readwrite', (s) => s.delete(k)); return true; } catch (e) { return false; } },
   };
 })();
 
@@ -446,6 +455,46 @@ document.addEventListener('visibilitychange', () => {
 });
 window.addEventListener('pagehide', () => persistSram(true));
 
+// ------------------------------------------------------------ game library (IndexedDB, per device)
+const SLOTS = 3;
+const prettyName = (n) => String(n || 'Game').replace(/\.(gbc?|sgb|zip)$/i, '').replace(/[_]+/g, ' ').trim() || 'Game';
+async function library() { return (await store.get('library')) || []; }
+async function addToLibrary(rom, name, sha) {
+  if (!(await store.set('rom:' + sha, rom))) return false;
+  const lib = (await library()).filter((g) => g.sha !== sha);
+  lib.unshift({ sha, name: prettyName(name), title: romTitle(rom), size: rom.length, added: Date.now() });
+  await store.set('library', lib);
+  return store.set('last', sha);
+}
+async function playGame(sha) {
+  const bytes = await store.get('rom:' + sha);
+  const meta = (await library()).find((g) => g.sha === sha);
+  if (!bytes || !meta) { toast('That game is no longer stored on this phone. Upload it again.'); return; }
+  await persistSram(true);
+  const settings = (await store.get('settings')) || {};
+  emu.orig = new Uint8Array(bytes); emu.sha = sha; emu.name = meta.name;
+  emu.patched = sha === YELLOW_SHA1 && settings.patch !== false;
+  buildRom();
+  await store.set('last', sha);
+  showTapOrBoot();
+}
+async function removeGame(sha) {
+  const lib = (await library()).filter((g) => g.sha !== sha);
+  await store.set('library', lib);
+  await store.del('rom:' + sha);
+  for (const key of [sha, sha + ':missingno']) {
+    await store.del('sram:' + key); await store.del('state:' + key);
+    for (let n = 1; n <= SLOTS; n++) await store.del('state:' + key + ':' + n);
+  }
+  if (emu.sha === sha) {
+    stop(); if (audio.sink) audio.sink.close();
+    emu.gb = null; emu.orig = null; emu.rom = null; emu.sha = ''; emu.name = ''; emu.patched = false;
+    $('insert').hidden = false; $('tap').hidden = true; $('led').classList.remove('on');
+  }
+}
+const slotKey = (n) => 'state:' + emu.key + ':' + n;
+async function readSlot(n) { return (await store.get(slotKey(n))) || (n === 1 ? await store.get('state:' + emu.key) : null); }
+
 async function useRom(bytes, name) {
   let rom = new Uint8Array(bytes);
   if (rom[0] === 0x50 && rom[1] === 0x4b) {
@@ -459,11 +508,12 @@ async function useRom(bytes, name) {
   emu.sha = await sha1(rom);
   const settings = (await store.get('settings')) || {};
   emu.patched = emu.sha === YELLOW_SHA1 && settings.patch !== false;
-  emu.name = name || romTitle(rom);
+  emu.name = prettyName(name || romTitle(rom));
   buildRom();
-  await store.set('rom', { name: emu.name, bytes: rom });
-  if (emu.sha === YELLOW_SHA1) toast(emu.patched ? 'Pokémon Yellow found. MissingNo. patch applied.' : 'Pokémon Yellow found. Playing unpatched.');
-  else toast(romTitle(rom) + ' loaded. The MissingNo. patch only fits Pokémon Yellow (US/Europe).', 4000);
+  const stored = await addToLibrary(rom, emu.name, emu.sha);
+  if (!stored) toast('Playing now, but this browser would not store the game for next time.', 4000);
+  if (emu.sha === YELLOW_SHA1) toast(emu.patched ? 'Pokémon Yellow added. MissingNo. patch applied.' : 'Pokémon Yellow added. Playing unpatched.');
+  else toast(emu.name + ' added to your games.');
   showTapOrBoot();
 }
 function buildRom() {
@@ -572,9 +622,11 @@ $('menuBtn').addEventListener('click', openMenu);
 $('mClose').addEventListener('click', closeMenu);
 $('sheetWrap').addEventListener('click', (e) => { if (e.target === $('sheetWrap')) closeMenu(); });
 
+const when = (t) => new Date(t).toLocaleString([], { hour: 'numeric', minute: '2-digit', month: 'short', day: 'numeric' });
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+let confirmDelete = '';
 async function updateMenu() {
   const has = !!emu.gb;
-  $('romInfo').textContent = emu.orig ? `${emu.name} · ${emu.patched ? 'MissingNo. patch on' : 'unpatched'}` : 'No ROM loaded yet';
   const yellow = emu.sha === YELLOW_SHA1;
   $('mPatch').disabled = !yellow;
   $('patchInfo').textContent = yellow ? 'Level 99 MissingNo. starter that follows you. Separate save from the unpatched game.' : 'Needs Pokémon Yellow (US/Europe)';
@@ -582,24 +634,65 @@ async function updateMenu() {
   $('patchState').classList.toggle('yes', emu.patched);
   $('soundState').textContent = audio.on ? 'ON' : 'OFF';
   $('soundState').classList.toggle('yes', audio.on);
-  ['mState', 'mLoadState', 'mImport'].forEach((id) => { $(id).disabled = !has; });
+  $('mImport').disabled = !has;
   $('mExport').disabled = !has || !downloads;
   $('mRom').disabled = !emu.patched || !downloads;
   if (!downloads) { $('mExport').querySelector('small').textContent = 'Not available in this view'; $('mRom').querySelector('small').textContent = 'Not available in this view'; }
-  const st = has ? await store.get('state:' + emu.key) : null;
-  $('stateInfo').textContent = st ? 'Saved ' + new Date(st.at).toLocaleString([], { hour: 'numeric', minute: '2-digit', month: 'short', day: 'numeric' }) : 'No snapshot';
-  $('mLoadState').disabled = !has || !st;
+
+  const lib = await library();
+  const list = $('gameList'); list.textContent = '';
+  for (const g of lib) {
+    const row = el('div', 'game');
+    const play = el('button', 'play' + (g.sha === emu.sha ? ' current' : ''), g.name);
+    const bits = [g.sha === emu.sha ? 'Playing now' : 'Tap to play', Math.round(g.size / 1024) + ' KB'];
+    if (g.sha === YELLOW_SHA1) bits.push('MissingNo. patch available');
+    play.appendChild(el('small', '', bits.join(' · ')));
+    play.addEventListener('click', async () => { if (audio.on) audio.ensure(); confirmDelete = ''; closeMenu(); await playGame(g.sha); });
+    const asking = confirmDelete === g.sha;
+    const del = el('button', 'mini' + (asking ? ' danger' : ''), asking ? 'Delete game and saves?' : 'Remove');
+    del.addEventListener('click', async () => {
+      if (confirmDelete !== g.sha) { confirmDelete = g.sha; updateMenu(); return; }
+      confirmDelete = ''; await removeGame(g.sha); updateMenu(); toast(g.name + ' and its saves were removed.');
+    });
+    row.append(play, del); list.appendChild(row);
+  }
+
+  const slots = $('slots'); slots.textContent = '';
+  for (let n = 1; n <= SLOTS; n++) {
+    const st = has ? await readSlot(n) : null;
+    const row = el('div', 'slot');
+    const label = el('span', '', 'Slot ' + n);
+    label.appendChild(el('small', '', st ? when(st.at) : 'Empty'));
+    const save = el('button', 'mini', 'Save'); save.disabled = !has;
+    const load = el('button', 'mini', 'Load'); load.disabled = !st;
+    save.addEventListener('click', async () => {
+      const s = emu.gb.saveState(); s[0] = null;
+      const ok = await store.set(slotKey(n), { at: Date.now(), state: s });
+      toast(ok ? 'Saved to slot ' + n + '.' : 'Could not save in this browser.');
+      closeMenu();
+    });
+    load.addEventListener('click', async () => {
+      const cur = await readSlot(n); if (!cur) return;
+      const s = cur.state.slice(); s[0] = emu.rom;
+      emu.gb.returnFromState(s); emu.gb.stopEmulator &= 1;
+      canvas.style.imageRendering = 'pixelated';
+      toast('Loaded slot ' + n + '.');
+      closeMenu();
+    });
+    row.append(label, save, load); slots.appendChild(row);
+  }
 }
 
 $('loadBtn').addEventListener('click', () => $('romFile').click());
 $('mLoad').addEventListener('click', () => $('romFile').click());
 $('romFile').addEventListener('change', async (e) => {
-  const f = e.target.files[0]; e.target.value = '';
-  if (!f) return;
+  const files = Array.from(e.target.files); e.target.value = '';
+  if (!files.length) return;
   if (audio.on) audio.ensure();
   await persistSram(true);
   closeMenu();
-  await useRom(await f.arrayBuffer(), f.name);
+  for (const f of files) await useRom(await f.arrayBuffer(), f.name);
+  if (files.length > 1) toast(files.length + ' games added. Pick one from Menu any time.', 3500);
 });
 $('mPatch').addEventListener('click', async () => {
   if (emu.sha !== YELLOW_SHA1) return;
@@ -616,21 +709,6 @@ $('mSound').addEventListener('click', () => {
   if (audio.on) { audio.ensure(); if (emu.gb && !audio.sink) { emu.gb.opts.sound = AudioSink; emu.gb.initSound(); } }
   store.get('settings').then((s) => { s = s || {}; s.sound = audio.on; store.set('settings', s); });
   updateMenu();
-});
-$('mState').addEventListener('click', async () => {
-  const s = emu.gb.saveState(); s[0] = null;
-  const ok = await store.set('state:' + emu.key, { at: Date.now(), state: s });
-  toast(ok ? 'Snapshot saved.' : 'Could not save a snapshot in this browser.');
-  closeMenu();
-});
-$('mLoadState').addEventListener('click', async () => {
-  const st = await store.get('state:' + emu.key);
-  if (!st) return;
-  const s = st.state.slice(); s[0] = emu.rom;
-  emu.gb.returnFromState(s); emu.gb.stopEmulator &= 1;
-  canvas.style.imageRendering = 'pixelated';
-  toast('Snapshot loaded.');
-  closeMenu();
 });
 $('mExport').addEventListener('click', async () => {
   await persistSram(true);
@@ -677,18 +755,19 @@ $('mRom').addEventListener('click', async () => {
   if (!matchMedia('(prefers-reduced-motion: reduce)').matches) setInterval(() => { if (!$('insert').hidden) draw(); }, 180);
 })();
 
-// ------------------------------------------------------------ start-up: reload the last ROM
+// ------------------------------------------------------------ start-up: reopen the last game played
 (async () => {
   const settings = (await store.get('settings')) || {};
   if (settings.sound === false) audio.on = false;
-  const saved = await store.get('rom');
-  if (saved && saved.bytes) {
-    emu.orig = new Uint8Array(saved.bytes); emu.name = saved.name;
-    emu.sha = await sha1(emu.orig);
-    emu.patched = emu.sha === YELLOW_SHA1 && settings.patch !== false;
-    buildRom();
-    showTapOrBoot();
+  const old = await store.get('rom');   // single-ROM storage from the first version
+  if (old && old.bytes) {
+    const bytes = new Uint8Array(old.bytes);
+    if (await addToLibrary(bytes, old.name, await sha1(bytes))) await store.del('rom');
   }
+  const last = await store.get('last');
+  const lib = await library();
+  const pick = lib.find((g) => g.sha === last) || lib[0];
+  if (pick) await playGame(pick.sha);
   updateMenu();
 })();
 </script>
