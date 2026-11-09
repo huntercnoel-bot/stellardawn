@@ -49,6 +49,12 @@ base64 -w0 gameboy/patch/missingno.ips   # paste into PATCH_B64 in index.html
 2. Tap **TAP TO PLAY WITH SOUND**. The game starts with the patch applied.
 3. The in-game SAVE is written to the phone automatically. Use **Menu → Export save** now and then as a backup.
 
+Extras in **Menu**: hold-to-rewind (last 10 seconds), game speed (0.5x to 2x) and FAST speed
+(2x/4x/8x, optional lock), resume-where-you-left-off, turbo A/B, left-handed layout, tap the
+screen to pause, screen looks and LCD grid, console colors, volume, GameShark codes per game,
+screenshots, restart, rename, play time, and thumbnails on save slots. Bluetooth controllers
+with the standard layout are read through the Gamepad API.
+
 Controls: D-pad and A/B on screen, Start/Select pills underneath, hold **FAST** to
 run at 4× speed. On a keyboard: arrows, `X` = A, `Z` = B, `Enter` = Start,
 `Shift` = Select, hold `Space` for fast.
