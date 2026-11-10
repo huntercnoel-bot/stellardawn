@@ -644,6 +644,8 @@ const prettyName = (n) => String(n || 'Game').replace(/\.(gbc?|sgb|zip)$/i, '').
 async function library() { return (await store.get('library')) || []; }
 async function addToLibrary(rom, name, sha) {
   if (!(await store.set('rom:' + sha, rom))) return false;
+  // Ask the browser to keep this site's games and saves instead of clearing them when space runs low.
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e) {}
   const lib = (await library()).filter((g) => g.sha !== sha);
   lib.unshift({ sha, name: prettyName(name), title: romTitle(rom), size: rom.length, added: Date.now() });
   await store.set('library', lib);
