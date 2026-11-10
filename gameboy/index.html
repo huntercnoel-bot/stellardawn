@@ -129,7 +129,7 @@
   .game .play.current { border-color: var(--shell); }
   .game .play.current small { color: var(--shell); }
   .sheet .mini { text-align: center; padding: 10px 14px; font-size: 13px; }
-  .sheet .mini.danger { background: var(--glitch-lo); border-color: var(--glitch); }
+  .sheet button.danger, .sheet .mini.danger { background: var(--glitch-lo); border-color: var(--glitch); }
   .extras { display: grid; gap: 14px; }
   .extras:empty { display: none; }
   .pick { display: grid; gap: 6px; }
@@ -252,6 +252,7 @@
         <button id="mImport">Import save<small>.sav or .srm file</small></button>
       </div>
       <button id="mRom">Download patched ROM<small>.zip for apps like Delta</small></button>
+      <button id="mLab" hidden>New game at Oak's lab<small id="labInfo">Replaces your MissingNo. save</small></button>
       <div class="row">
         <button id="mShot">Screenshot<small>Save the screen as a .png</small></button>
         <button id="mReset">Restart game<small>Back to the title screen</small></button>
@@ -277,6 +278,8 @@
 'use strict';
 const YELLOW_SHA1 = 'cc7d03262ebfaf2f06772c1a480c7d9d5f4a38e1';
 const PATCH_B64 = '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';
+// A battery save made in the patched game: standing in Oak's lab in front of the Poke Ball (player ASH, rival GARY).
+const LAB_SAVE_B64 = '7dpNixRHGAfwp7u6e3pmatJzEFlfwE1yyIImNownKenxBYMxgTnnlA8Qwn4BYVFRDBhwTyIiCx79Ch4aBtTDin6E9eLFS8OchCZlPVVdOzObWd3El+zh/3vYYZ7up6uqq2uqL0u0N8LKrMKYPc7HpHQV/niW5XnZqIza0AZfoVRZuqqy5CPuW54Xhc+mfH9F4a9xR6tKNFxrZTkYFAVXCzEeTya+x+lIiZTaNJTKcx4R9+dHMh2nHysfU0oIKeua69zd8NnZcexfYkYmp1HkLnar93X8MdvGoufCDflnXJKLqom6Cd2E70MpnvP5OeTrbI2eRmmC22d23WQmpImJCdmEmMbO+3MrZvGz4qaqrMqEng9lgvv1/Q+Kge0/e+FCDMRgbGIiJ7IyUQsXfEGhC/3Ph0BCSSU3lYl6s+Z7z42Kg1dgmZfFuBirWtXbYy1pe0rLantJNgvTLk3L13GbPK9S8ko1a9UM2vez3YzrMd9tPgAAAAAAAAAAAAAAAAAAAADg01tbvzm6tXb1z9Ht64sLgp0H9J7bzunG2p27o1t/3bw9GgnT1JHy+TFa6T2NWqbZTpzE5dn+pfXzpNfPvnnS6XxL7Wf6yujR006H6O0TvbDPM6HoLfOXHy/TNz8TibAbhbobmz8ZrPwfUxhQ8i8nZodf1/ZWN9ztRK/XbsUi7u52PoqT1mzeplgHOnwpdKRjnQQtner2/CWvgvePRXYu3KM0PTy8OBy+/um0dv9RFxwI9Jea9l+COlwKAzrYN6P5LaVyaTpRD76bLp3geHhCfB/9EJ9M8sWDm58ceM+vX3+gLJw5+LX5u4Yp/O8+tDXDviUOH/iYH50mxbt9NOQtPwnDFTpBZptL875984Xa5OaUzO0rQZj8KPFLcdm+GS+bXFJlzvcrlz82OW/afTe4QOvfuT5atfU9oYOHtCUC2tjifNls4vf5etqw1y+HnI9M/cbIbwOrtDW3LXxMfsnn0erW4r0lTVuppkOpHb3Lu5pie1NdmydtnjP7srN5nGhacjft8pamczN519TbUvPRpk6axX83/cX2/FeJ3+oSl0tNpyKffyZRs4Vq/ID2HTwTAPhswj8wBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPCpvAM=';
 const FRAME_MS = 1000 / 59.7275;
 const KEYS = { right: 0, left: 1, up: 2, down: 3, a: 4, b: 5, select: 6, start: 7 };
 const $ = (id) => document.getElementById(id);
@@ -493,6 +496,24 @@ async function saveAuto() {
   await store.set('auto:' + emu.key, { at: Date.now(), sig: sig(emu.gb.MBCRam), state: snap() });
 }
 
+// Taps A through the title screen and CONTINUE, waits for the game to load, then turns the player up to face the ball.
+function skipToLab(gb) {
+  const sound = gb.opts.sound; gb.opts.sound = null;
+  const rd = (a) => gb.memoryReader[a](gb, a);
+  let frames = 0, sawMenu = false, gone = 0;
+  const run = (n) => {
+    for (let i = 0; i < n; i++) {
+      gb.stopEmulator |= 1; gb.run(); frames++;
+      if (rd(0xC3C9) === 0xED && rd(0xC3A0) === 0x79) { sawMenu = true; gone = 0; } else if (sawMenu) gone++;
+    }
+  };
+  while (frames < 4000 && gone < 90) { gb.JoyPadEvent(KEYS.a, true); run(6); gb.JoyPadEvent(KEYS.a, false); run(39); }
+  const ok = gone >= 90;
+  if (ok) { gb.JoyPadEvent(KEYS.up, true); run(8); gb.JoyPadEvent(KEYS.up, false); run(30); }
+  gb.opts.sound = sound;
+  return ok;
+}
+
 async function boot(resume) {
   stop();
   await flushPlayed();
@@ -500,7 +521,12 @@ async function boot(resume) {
   emu.paused = false; emu.rewinding = false; emu.history = []; emu.frame = 0; $('paused').hidden = true;
   if (emu.fast) { emu.fast = false; $('ffPill').classList.remove('on'); }
   emu.cheats = (await store.get('cheats:' + emu.sha)) || [];
-  const saved = await store.get('sram:' + emu.key);
+  let saved = await store.get('sram:' + emu.key);
+  // A fresh MissingNo. game starts from the Oak's lab save instead of the intro.
+  let fromLab = false;
+  if (!saved && emu.patched) {
+    try { saved = await inflateRaw(Uint8Array.from(atob(LAB_SAVE_B64), (c) => c.charCodeAt(0))); fromLab = true; } catch (e) {}
+  }
   const gb = new GameBoyCore(canvas, emu.rom, {
     bootRom: false, sound: audio.ctx ? AudioSink : null, interval: FRAME_MS,
     imageSmoothing: false, drawEvents: false, volume: 1,
@@ -516,11 +542,19 @@ async function boot(resume) {
   emu.gb = gb;
   emu.sramSig = sig(gb.MBCRam);
   applyLook();
+  if (fromLab) {
+    await store.del('auto:' + emu.key);
+    toast("Skipping to Oak's lab...", 6000);
+    await new Promise((r) => setTimeout(r, 30));
+    toast(skipToLab(gb) ? "You are in Oak's lab. Press A to take the Poke Ball." : 'Press A on the title screen and pick CONTINUE.', 5000);
+    await persistSram(true);
+    resume = false; fromLab = 'done';
+  }
   // Pick up exactly where the player left off, but only if that snapshot matches the stored battery save.
   if (resume && cfg.autoResume) {
     const auto = await store.get('auto:' + emu.key);
     if (auto && auto.sig === emu.sramSig) { try { restore(auto.state); toast('Resumed where you left off.'); } catch (e) {} }
-  } else if (!resume) { await store.del('auto:' + emu.key); }
+  } else if (!resume && fromLab !== 'done') { await store.del('auto:' + emu.key); }
   $('insert').hidden = true;
   $('led').classList.add('on');
   updateMenu();
@@ -791,7 +825,7 @@ let downloads = null;
 downloadsP.then((d) => { downloads = d; updateMenu(); }).catch(() => {});
 
 function openMenu() { if (emu.rewinding) endRewind(); $('sheetWrap').hidden = false; stop(); updateMenu(); $('mClose').focus(); }
-function closeMenu() { $('sheetWrap').hidden = true; if (emu.gb) start(); }
+function closeMenu() { labAsk = false; $('sheetWrap').hidden = true; if (emu.gb) start(); }
 $('menuBtn').addEventListener('click', openMenu);
 $('mClose').addEventListener('click', closeMenu);
 $('sheetWrap').addEventListener('click', (e) => { if (e.target === $('sheetWrap')) closeMenu(); });
@@ -809,6 +843,8 @@ async function updateMenu() {
   $('patchState').classList.toggle('yes', emu.patched);
   $('soundState').textContent = audio.on ? 'ON' : 'OFF';
   $('soundState').classList.toggle('yes', audio.on);
+  $('mLab').hidden = !(has && emu.patched); $('mLab').classList.toggle('danger', labAsk);
+  $('labInfo').textContent = labAsk ? 'Tap again to erase your MissingNo. save and start over' : 'Replaces your MissingNo. save';
   $('mImport').disabled = !has; $('mReset').disabled = !has; $('mShot').disabled = !has || !downloads;
   if (!downloads) $('mShot').querySelector('small').textContent = 'Not available in this view';
   $('mExport').disabled = !has || !downloads;
@@ -958,6 +994,14 @@ function renderExtras() {
 }
 $('volume').addEventListener('input', (e) => { cfg.volume = e.target.value / 100; });
 $('volume').addEventListener('change', saveCfg);
+let labAsk = false;
+$('mLab').addEventListener('click', async () => {
+  if (!labAsk) { labAsk = true; updateMenu(); return; }
+  labAsk = false;
+  await store.del('sram:' + emu.key); await store.del('auto:' + emu.key);
+  emu.sramSig = 0; if (emu.gb) emu.gb.MBCRam = new Uint8Array(0);
+  closeMenu(); await boot(false);
+});
 $('mReset').addEventListener('click', async () => { await persistSram(true); closeMenu(); await boot(false); toast('Game restarted.'); });
 $('mShot').addEventListener('click', async () => {
   const big = document.createElement('canvas'); big.width = 640; big.height = 576;

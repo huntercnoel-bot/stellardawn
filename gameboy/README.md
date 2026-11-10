@@ -46,7 +46,7 @@ base64 -w0 gameboy/patch/missingno.ips   # paste into PATCH_B64 in index.html
 ## Playing on iPhone
 
 1. Open the published page in Safari and tap **UPLOAD ROM**, then pick one or more `.gb`/`.gbc` files (or `.zip`s holding them). Add more later from **Menu → Add a ROM**.
-2. Tap **TAP TO PLAY WITH SOUND**. The game starts with the patch applied.
+2. Tap **TAP TO PLAY WITH SOUND**. The game starts with the patch applied. A fresh MissingNo. game skips the intro: the page loads a built-in battery save (player ASH, rival GARY), taps through the title screen itself and leaves you in Oak's lab facing the Poké Ball. **Menu → New game at Oak's lab** starts over from there.
 3. The in-game SAVE is written to the phone automatically. Use **Menu → Export save** now and then as a backup.
 
 Extras in **Menu**: hold-to-rewind (last 10 seconds), game speed (0.5x to 2x) and FAST speed
